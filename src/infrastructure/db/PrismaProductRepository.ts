@@ -3,7 +3,7 @@ import { ProductSpecs, CrawlHistory, WebReviewReference } from '../../domains/pr
 import { prisma } from './PrismaClient';
 
 export class PrismaProductRepository implements ProductRepository {
-    async saveProduct(slug: string, specs: ProductSpecs): Promise<string> {
+    async saveProduct(slug: string, specs: ProductSpecs, categoryId?: string): Promise<string> {
         const product = await prisma.product.upsert({
             where: { slug },
             create: {
@@ -18,6 +18,7 @@ export class PrismaProductRepository implements ProductRepository {
                 weight: specs.weight,
                 os: specs.os,
                 price: specs.price,
+                ...(categoryId ? { categoryId } : {}),
             },
             update: {
                 maker: specs.maker,
@@ -30,6 +31,7 @@ export class PrismaProductRepository implements ProductRepository {
                 weight: specs.weight,
                 os: specs.os,
                 price: specs.price,
+                ...(categoryId ? { categoryId } : {}),
             },
         });
         return product.id;

@@ -1,11 +1,6 @@
 import { PrismaSkillRepository } from '@/infrastructure/db/PrismaSkillRepository';
-import { pgPool } from '@/infrastructure/db/PrismaClient';
 
 const repo = new PrismaSkillRepository();
-
-afterAll(async () => {
-    await pgPool.end();
-});
 
 describe('PrismaSkillRepository', () => {
     test('findByName returns seeded skill', async () => {

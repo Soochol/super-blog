@@ -1,11 +1,10 @@
 import { getCategories, getCategoryById, getProductsByCategory, getProductById, getReviewByProductId } from '@/lib/api';
-import { prisma, pgPool } from '@/infrastructure/db/PrismaClient';
+import { prisma } from '@/infrastructure/db/PrismaClient';
 
 // Integration tests — require seeded DB
 
 afterAll(async () => {
   await prisma.$disconnect();
-  await pgPool.end();
 });
 
 describe('api (Prisma)', () => {

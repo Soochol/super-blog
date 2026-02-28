@@ -11,7 +11,7 @@ export interface AiSkill {
 export function injectContextToPrompt(template: string, context: Record<string, string>): string {
     let result = template;
     for (const [key, value] of Object.entries(context)) {
-        result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+        result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     }
     return result;
 }

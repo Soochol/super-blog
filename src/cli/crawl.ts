@@ -6,6 +6,7 @@ import { ProductGatheringService } from '../domains/product/application/ProductG
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
 import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
+import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
@@ -43,8 +44,9 @@ export async function downloadAndProcessImage(
 
 async function main() {
   const url = process.argv[2];
+  const categoryId = process.argv[3] || 'laptop';
   if (!url) {
-    console.error('Usage: npm run pipeline:crawl -- <product-url>');
+    console.error('Usage: npm run pipeline:crawl -- <product-url> [categoryId]');
     process.exit(1);
   }
 
@@ -65,13 +67,15 @@ async function main() {
     console.log(`Extracted: ${specs.maker} ${specs.model} (slug: ${slug})`);
 
     // Save product to DB first so we have a productId
-    const productId = await repo.saveProduct(slug, specs);
+    const productId = await repo.saveProduct(slug, specs, categoryId);
     console.log(`Saved product: ${productId}`);
+
+    // Crawl raw HTML for image extraction and content hashing
+    const rawData = await crawler.crawlExistingProduct(url);
 
     // Extract product image using Skill (not hardcoded prompt!)
     const imageSkill = await skillRepo.findByName('extract-product-image');
     if (imageSkill) {
-      const rawData = await crawler.crawlExistingProduct(url);
       const imagePrompt = injectContextToPrompt(imageSkill.userPromptTemplate, {
         html: rawData.html.substring(0, 10000),
       });
@@ -94,10 +98,10 @@ async function main() {
       console.warn('Skill "extract-product-image" not found. Skipping image extraction.');
     }
 
-    // Save crawl history
+    // Save crawl history with content hash for change detection
     await repo.saveCrawlHistory(productId, {
       url,
-      htmlHash: Buffer.from(url).toString('base64').substring(0, 32),
+      htmlHash: createHash('sha256').update(rawData.html).digest('hex').substring(0, 64),
       lastCrawledAt: new Date(),
     });
 

@@ -1,5 +1,5 @@
 import { PrismaProductRepository } from '@/infrastructure/db/PrismaProductRepository';
-import { prisma, pgPool } from '@/infrastructure/db/PrismaClient';
+import { prisma } from '@/infrastructure/db/PrismaClient';
 import { ProductSpecs } from '@/domains/product/domain/ProductSpecs';
 
 const TEST_SLUG = 'test-model-x1';
@@ -26,7 +26,6 @@ describe('PrismaProductRepository', () => {
         await prisma.crawlHistory.deleteMany({ where: { product: { slug: TEST_SLUG } } });
         await prisma.product.deleteMany({ where: { slug: TEST_SLUG } });
         await prisma.$disconnect();
-        await pgPool.end();
     });
 
     describe('saveProduct', () => {
