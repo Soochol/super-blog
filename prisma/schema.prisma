@@ -131,3 +131,51 @@ model AiSkill {
   model                String
   version              String
 }
+
+// Admin Pipeline Domain
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum TriggerSource {
+  MANUAL
+  SCHEDULER
+}
+
+model PipelineJob {
+  id          String        @id @default(cuid())
+  status      JobStatus     @default(PENDING)
+  triggeredBy TriggerSource
+  category    String
+  makers      String[]
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  logs        PipelineLog[]
+}
+
+model PipelineLog {
+  id        String      @id @default(cuid())
+  jobId     String
+  job       PipelineJob @relation(fields: [jobId], references: [id])
+  message   String
+  createdAt DateTime    @default(now())
+
+  @@index([jobId])
+}
+
+model PipelineSchedule {
+  id        String   @id @default(cuid())
+  enabled   Boolean  @default(false)
+  frequency String   @default("daily")
+  hour      Int      @default(3)
+  minute    Int      @default(0)
+  dayOfWeek Int?
+  category  String   @default("노트북")
+  makers    String[]
+  updatedAt DateTime @updatedAt
+}
