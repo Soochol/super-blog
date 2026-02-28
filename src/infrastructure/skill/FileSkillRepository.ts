@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, existsSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { SkillRepository } from '../../domains/skill/domain/ports/SkillRepository';
@@ -28,17 +28,23 @@ function parseSkillMd(content: string): ParsedSkill {
   const body = fmMatch[2];
 
   // Extract sections by # headings
-  const systemMatch = body.match(/# System Prompt\s*\n([\s\S]*?)(?=\n# |\n$|$)/);
-  const userMatch = body.match(/# User Prompt\s*\n([\s\S]*?)$/);
+  const systemMatch = body.match(/# 역할\s*\n([\s\S]*?)(?=\n# )/);
+  const userMatch = body.match(/# 작업 지시\s*\n([\s\S]*?)(?=\n# 출력 형식|$)/);
+  const outputMatch = body.match(/# 출력 형식\s*\n([\s\S]*?)$/);
 
   if (!systemMatch || !userMatch) {
-    throw new Error('Invalid SKILL.md: missing "# System Prompt" or "# User Prompt" section');
+    throw new Error('Invalid SKILL.md: missing "# 역할" or "# 작업 지시" section');
+  }
+
+  let userPrompt = userMatch[1].trim();
+  if (outputMatch) {
+    userPrompt += `\n\n## 출력 형식\n${outputMatch[1].trim()}`;
   }
 
   return {
     frontmatter,
     systemPrompt: systemMatch[1].trim(),
-    userPrompt: userMatch[1].trim(),
+    userPrompt,
   };
 }
 
@@ -51,23 +57,30 @@ export class FileSkillRepository implements SkillRepository {
 
   async findByName(name: string): Promise<AiSkill | null> {
     const filePath = join(this.skillsDir, name, 'SKILL.md');
-    if (!existsSync(filePath)) {
-      return null;
+    try {
+      return this.loadSkillFile(filePath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
     }
-    return this.loadSkillFile(filePath);
   }
 
   async findAll(): Promise<AiSkill[]> {
-    if (!existsSync(this.skillsDir)) {
-      return [];
+    let entries;
+    try {
+      entries = readdirSync(this.skillsDir, { withFileTypes: true });
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw err;
     }
-    const entries = readdirSync(this.skillsDir, { withFileTypes: true });
     const skills: AiSkill[] = [];
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      const filePath = join(this.skillsDir, entry.name, 'SKILL.md');
-      if (existsSync(filePath)) {
-        skills.push(this.loadSkillFile(filePath));
+      try {
+        skills.push(this.loadSkillFile(join(this.skillsDir, entry.name, 'SKILL.md')));
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+        // No SKILL.md in this directory — skip
       }
     }
     return skills;

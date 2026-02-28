@@ -34,29 +34,21 @@ export class ClaudeContentGenerator implements ContentGenerator {
 
         const prompt = `${basePrompt}\n\n전략 컨텍스트: ${JSON.stringify(strategy)}\n\nJSON으로 답변해줘. 형식: {"summary":"","pros":[],"cons":[],"recommendedFor":"","notRecommendedFor":"","specHighlights":[]}`;
 
-        const response = await this.llm.run(prompt, {
-            system: skill.systemPromptTemplate,
-            model: skill.model,
-            temperature: skill.temperature,
-        });
+        const response = await this.runWithSkill(prompt, skill);
 
         return this.parseJson<ProductReview>(response);
     }
 
-    async generateComparison(productAId: string, productBId: string): Promise<string> {
+    async generateComparison(specsA: string, specsB: string): Promise<string> {
         const skill = await this.loadSkill('generate-comparison');
 
         const prompt = injectContextToPrompt(skill.userPromptTemplate, {
             category: '노트북',
-            productA: productAId,
-            productB: productBId,
+            productA: specsA,
+            productB: specsB,
         });
 
-        return this.llm.run(prompt, {
-            system: skill.systemPromptTemplate,
-            model: skill.model,
-            temperature: skill.temperature,
-        });
+        return this.runWithSkill(prompt, skill);
     }
 
     async generateProductStrategy(specs: ProductSpecs): Promise<ProductStrategy> {
@@ -71,11 +63,7 @@ OS: ${specs.os}, 가격: ${specs.price}원
 
 JSON 형식: {"targetAudience":[],"keySellingPoints":[],"competitors":[],"positioning":""}`;
 
-        const response = await this.llm.run(prompt, {
-            system: skill.systemPromptTemplate,
-            model: skill.model,
-            temperature: skill.temperature,
-        });
+        const response = await this.runWithSkill(prompt, skill);
 
         return this.parseJson<ProductStrategy>(response);
     }
@@ -95,11 +83,7 @@ ${reviewSummaries}
 JSON 형식: {"overallScore":0,"commonPraises":[],"commonComplaints":[],"reliability":"HIGH"}
 overallScore는 0-100, reliability는 "HIGH", "MEDIUM", "LOW" 중 하나로 답변해주세요.`;
 
-        const response = await this.llm.run(prompt, {
-            system: skill.systemPromptTemplate,
-            model: skill.model,
-            temperature: skill.temperature,
-        });
+        const response = await this.runWithSkill(prompt, skill);
 
         return this.parseJson<SentimentAnalysis>(response);
     }
@@ -125,9 +109,17 @@ overallScore는 0-100, reliability는 "HIGH", "MEDIUM", "LOW" 중 하나로 답�
     private async loadSkill(name: string): Promise<AiSkill> {
         const skill = await this.skillRepo.findByName(name);
         if (!skill) {
-            throw new Error(`Skill "${name}" not found. Run db:seed first.`);
+            throw new Error(`Skill "${name}" not found.`);
         }
         return skill;
+    }
+
+    private async runWithSkill(prompt: string, skill: AiSkill): Promise<string> {
+        return this.llm.run(prompt, {
+            system: skill.systemPromptTemplate,
+            model: skill.model,
+            temperature: skill.temperature,
+        });
     }
 
     private parseJson<T>(text: string): T {

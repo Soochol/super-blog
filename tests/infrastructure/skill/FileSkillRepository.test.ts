@@ -26,13 +26,27 @@ describe('FileSkillRepository', () => {
       const skill = await repo.findByName('nonexistent');
       expect(skill).toBeNull();
     });
+
+    it('appends output format to user prompt when present', async () => {
+      const skill = await repo.findByName('test-skill-with-output');
+
+      expect(skill).not.toBeNull();
+      expect(skill!.userPromptTemplate).toContain('Analyze {{input}}.');
+      expect(skill!.userPromptTemplate).toContain('## 출력 형식');
+      expect(skill!.userPromptTemplate).toContain('JSON 형식으로 출력');
+    });
+
+    it('does not add output format section when absent', async () => {
+      const skill = await repo.findByName('test-skill');
+
+      expect(skill!.userPromptTemplate).not.toContain('출력 형식');
+    });
   });
 
   describe('findAll', () => {
     it('returns all skills from directory', async () => {
       const skills = await repo.findAll();
-      expect(skills).toHaveLength(1);
-      expect(skills[0].name).toBe('test-skill');
+      expect(skills).toHaveLength(2);
     });
 
     it('returns empty array for nonexistent directory', async () => {
@@ -67,6 +81,7 @@ describe('FileSkillRepository (production skills)', () => {
     expect(skill!.name).toBe(name);
     expect(skill!.systemPromptTemplate.length).toBeGreaterThan(0);
     expect(skill!.userPromptTemplate.length).toBeGreaterThan(0);
+    expect(skill!.userPromptTemplate).toContain('## 출력 형식');
     expect(skill!.temperature).toBeGreaterThanOrEqual(0);
     expect(skill!.temperature).toBeLessThanOrEqual(1);
     expect(skill!.model).toBe('claude');

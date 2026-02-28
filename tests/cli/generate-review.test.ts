@@ -23,8 +23,8 @@ jest.mock('@/infrastructure/ai/ClaudeCliAdapter', () => ({
     ClaudeCliAdapter: jest.fn().mockImplementation(() => ({})),
 }));
 
-jest.mock('@/infrastructure/db/PrismaSkillRepository', () => ({
-    PrismaSkillRepository: jest.fn().mockImplementation(() => ({})),
+jest.mock('@/infrastructure/skill/FileSkillRepository', () => ({
+    FileSkillRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
 const mockWriteComprehensiveReview = jest.fn();

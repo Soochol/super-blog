@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '../infrastructure/db/PrismaClient';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
-import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { ClaudeContentGenerator } from '../infrastructure/ai/ClaudeContentGenerator';
 
 export async function generateComparison(slugA: string, slugB: string): Promise<string> {
@@ -12,7 +12,7 @@ export async function generateComparison(slugA: string, slugB: string): Promise<
     if (!productB) throw new Error(`Product "${slugB}" not found`);
 
     const llm = new ClaudeCliAdapter();
-    const skillRepo = new PrismaSkillRepository();
+    const skillRepo = new FileSkillRepository();
     const generator = new ClaudeContentGenerator(llm, skillRepo);
 
     const specsA = `${productA.maker} ${productA.model} (CPU: ${productA.cpu}, RAM: ${productA.ram}GB, GPU: ${productA.gpu}, 화면: ${productA.displaySize}인치, 무게: ${productA.weight}kg, 가격: ${productA.price}원)`;

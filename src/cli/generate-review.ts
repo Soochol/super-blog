@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '../infrastructure/db/PrismaClient';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
-import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { ClaudeContentGenerator } from '../infrastructure/ai/ClaudeContentGenerator';
 import { CritiqueWritingService } from '../domains/content/application/CritiqueWritingService';
 import { ProductReview } from '../domains/content/domain/Review';
@@ -39,7 +39,7 @@ export async function generateAndSaveReview(slug: string): Promise<ProductReview
 
     // Generate review using CritiqueWritingService pipeline
     const llm = new ClaudeCliAdapter();
-    const skillRepo = new PrismaSkillRepository();
+    const skillRepo = new FileSkillRepository();
     const generator = new ClaudeContentGenerator(llm, skillRepo);
     const service = new CritiqueWritingService(generator);
     const review = await service.writeComprehensiveReview(specs, references);
