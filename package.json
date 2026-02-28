@@ -16,7 +16,8 @@
     "pipeline:crawl": "npx tsx src/cli/crawl.ts",
     "pipeline:all": "npx tsx src/cli/pipeline.ts",
     "pipeline:review": "npx tsx src/cli/generate-review.ts",
-    "pipeline:compare": "npx tsx src/cli/generate-comparison.ts"
+    "pipeline:compare": "npx tsx src/cli/generate-comparison.ts",
+    "worker": "npx tsx src/worker/index.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.49",
