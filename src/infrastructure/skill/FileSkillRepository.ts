@@ -28,17 +28,17 @@ function parseSkillMd(content: string): ParsedSkill {
   const body = fmMatch[2];
 
   // Extract sections by # headings
-  const systemMatch = body.match(/# 역할\s*\n([\s\S]*?)(?=\n# )/);
-  const userMatch = body.match(/# 작업 지시\s*\n([\s\S]*?)(?=\n# 출력 형식|$)/);
-  const outputMatch = body.match(/# 출력 형식\s*\n([\s\S]*?)$/);
+  const systemMatch = body.match(/# Role\s*\n([\s\S]*?)(?=\n# )/);
+  const userMatch = body.match(/# Instructions\s*\n([\s\S]*?)(?=\n# Output Format|$)/);
+  const outputMatch = body.match(/# Output Format\s*\n([\s\S]*?)$/);
 
   if (!systemMatch || !userMatch) {
-    throw new Error('Invalid SKILL.md: missing "# 역할" or "# 작업 지시" section');
+    throw new Error('Invalid SKILL.md: missing "# Role" or "# Instructions" section');
   }
 
   let userPrompt = userMatch[1].trim();
   if (outputMatch) {
-    userPrompt += `\n\n## 출력 형식\n${outputMatch[1].trim()}`;
+    userPrompt += `\n\n## Output Format\n${outputMatch[1].trim()}`;
   }
 
   return {

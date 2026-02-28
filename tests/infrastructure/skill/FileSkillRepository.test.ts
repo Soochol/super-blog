@@ -32,14 +32,14 @@ describe('FileSkillRepository', () => {
 
       expect(skill).not.toBeNull();
       expect(skill!.userPromptTemplate).toContain('Analyze {{input}}.');
-      expect(skill!.userPromptTemplate).toContain('## 출력 형식');
+      expect(skill!.userPromptTemplate).toContain('## Output Format');
       expect(skill!.userPromptTemplate).toContain('JSON 형식으로 출력');
     });
 
     it('does not add output format section when absent', async () => {
       const skill = await repo.findByName('test-skill');
 
-      expect(skill!.userPromptTemplate).not.toContain('출력 형식');
+      expect(skill!.userPromptTemplate).not.toContain('Output Format');
     });
   });
 
@@ -81,7 +81,7 @@ describe('FileSkillRepository (production skills)', () => {
     expect(skill!.name).toBe(name);
     expect(skill!.systemPromptTemplate.length).toBeGreaterThan(0);
     expect(skill!.userPromptTemplate.length).toBeGreaterThan(0);
-    expect(skill!.userPromptTemplate).toContain('## 출력 형식');
+    expect(skill!.userPromptTemplate).toContain('## Output Format');
     expect(skill!.temperature).toBeGreaterThanOrEqual(0);
     expect(skill!.temperature).toBeLessThanOrEqual(1);
     expect(skill!.model).toBe('claude');

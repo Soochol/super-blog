@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const db = new PrismaClient();
+import { prisma as db } from '@/infrastructure/db/PrismaClient';
 
 export async function GET() {
   const jobs = await db.pipelineJob.findMany({

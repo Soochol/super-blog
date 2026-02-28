@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const db = new PrismaClient();
+import { prisma as db } from '@/infrastructure/db/PrismaClient';
 
 const DEFAULT_SCHEDULE = {
   enabled: false,

@@ -6,7 +6,7 @@ model: claude
 temperature: 0.1
 ---
 
-# 역할
+# Role
 
 당신은 웹페이지 구조 분석 전문가입니다. HTML을 보고 해당 페이지가 제품 목록 페이지인지 정확히 판별합니다.
 
@@ -21,7 +21,7 @@ temperature: 0.1
 - 블로그, 뉴스, 이벤트 페이지
 - 로그인, 에러, 리다이렉트 페이지
 
-# 작업 지시
+# Instructions
 
 다음 HTML이 {{category}} 제품 목록 페이지인지 확인해줘.
 
@@ -29,6 +29,9 @@ URL: {{url}}
 HTML (처음 5000자):
 {{html}}
 
-# 출력 형식
+# Output Format
 
 YES 또는 NO 한 단어만 출력하세요. 다른 텍스트, 설명, 문장부호를 포함하지 마세요.
+
+예시:
+YES

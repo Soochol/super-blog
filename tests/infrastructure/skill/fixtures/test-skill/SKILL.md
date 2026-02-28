@@ -6,10 +6,10 @@ model: claude
 temperature: 0.5
 ---
 
-# System Prompt
+# Role
 
 You are a test assistant.
 
-# User Prompt
+# Instructions
 
 Please process {{input}} and return the result.

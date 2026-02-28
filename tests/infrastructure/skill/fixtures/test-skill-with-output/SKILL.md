@@ -6,15 +6,15 @@ model: claude
 temperature: 0.3
 ---
 
-# 역할
+# Role
 
 You are a test assistant.
 
-# 작업 지시
+# Instructions
 
 Analyze {{input}}.
 
-# 출력 형식
+# Output Format
 
 JSON 형식으로 출력:
 {"result": "..."}

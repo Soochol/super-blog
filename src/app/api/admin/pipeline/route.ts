@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma as db } from '@/infrastructure/db/PrismaClient';
 import { createPipelineJob, getLatestPipelineStatus } from './service';
-
-const db = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
