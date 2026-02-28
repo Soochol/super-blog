@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCategories, getProductsByCategory, getProductById, getReviewByProductId } from '@/lib/api';
+import { getCategories, getProductsByCategory, getProductById, getComparisonReviews } from '@/lib/api';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
 
 const IDS_SEPARATOR = '-vs-';
@@ -55,10 +55,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
         notFound();
     }
 
-    const [reviewA, reviewB] = await Promise.all([
-        getReviewByProductId(productA.id),
-        getReviewByProductId(productB.id),
-    ]);
+    const { reviewA, reviewB } = await getComparisonReviews(productA.id, productB.id);
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl">
