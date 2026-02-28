@@ -87,6 +87,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                                 size="lg"
                                 variant="secondary"
                                 className="w-full sm:w-auto"
+                                productId={product.id}
+                                pageType="product_detail"
+                                ctaPosition="top"
                             />
                         </div>
                     </div>
@@ -155,6 +158,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     size="lg"
                     variant="primary"
                     className="w-full md:w-auto min-w-[250px]"
+                    productId={product.id}
+                    pageType="product_detail"
+                    ctaPosition="bottom"
                 />
             </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ShoppingCart } from 'lucide-react';
+import { trackCtaClick } from '@/app/actions/analytics';
 
 interface BuyButtonCTAProps {
     url: string;
@@ -8,6 +9,9 @@ interface BuyButtonCTAProps {
     variant?: 'primary' | 'secondary' | 'outline';
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    productId?: string;
+    pageType?: 'product_detail' | 'comparison' | 'category';
+    ctaPosition?: 'top' | 'middle' | 'bottom';
 }
 
 export default function BuyButtonCTA({
@@ -15,7 +19,10 @@ export default function BuyButtonCTA({
     price,
     variant = 'primary',
     size = 'md',
-    className = ''
+    className = '',
+    productId,
+    pageType = 'product_detail',
+    ctaPosition = 'bottom',
 }: BuyButtonCTAProps) {
 
     const baseStyles = "inline-flex flex-col items-center justify-center font-black border-4 border-black text-black shadow-hard uppercase transition-all hover:-translate-y-1 hover:-translate-x-1 hover:shadow-hard-lg active:translate-y-1 active:translate-x-1 active:shadow-none focus:outline-none focus:ring-4 focus:ring-black focus:ring-offset-2";
@@ -39,8 +46,9 @@ export default function BuyButtonCTA({
             rel="noopener noreferrer nofollow"
             className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
             onClick={() => {
-                // Here we will add GA/GTM event tracking in the future
-                // console.log('CTA Clicked', { url, price });
+                if (productId) {
+                    trackCtaClick(productId, pageType, ctaPosition, variant);
+                }
             }}
         >
             <ShoppingCart className={size === 'sm' ? "w-4 h-4" : size === 'lg' ? "w-6 h-6" : "w-5 h-5"} />
