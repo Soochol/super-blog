@@ -4,12 +4,16 @@ import { prisma } from '@/infrastructure/db/PrismaClient';
 
 export class PrismaAnalyticsTracker implements AnalyticsTracker {
   async trackEvent(event: TrackingEvent): Promise<void> {
-    await prisma.eventLog.create({
-      data: {
-        eventName: event.eventName,
-        payload: event.payload,
-        timestamp: event.timestamp,
-      },
-    });
+    try {
+      await prisma.eventLog.create({
+        data: {
+          eventName: event.eventName,
+          payload: event.payload,
+          timestamp: event.timestamp,
+        },
+      });
+    } catch (error) {
+      console.error('[PrismaAnalyticsTracker] Failed to track event:', error);
+    }
   }
 }

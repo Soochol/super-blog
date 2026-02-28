@@ -17,6 +17,13 @@ describe('PrismaAnalyticsTracker', () => {
     mockCreate.mockClear();
   });
 
+  it('does not throw when prisma.eventLog.create fails', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('DB connection failed'));
+    const event = createCtaClickEvent('product-1', 'product_detail', 'bottom', 'primary');
+
+    await expect(tracker.trackEvent(event)).resolves.toBeUndefined();
+  });
+
   it('trackEvent saves cta_click to EventLog', async () => {
     const event = createCtaClickEvent('product-1', 'product_detail', 'bottom', 'primary');
 
