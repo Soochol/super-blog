@@ -17,6 +17,13 @@ export interface CrawlHistory {
     lastCrawledAt: Date;
 }
 
+export interface WebReviewReference {
+    source: string; // e.g. "YouTube", "Reddit", "Naver Blog"
+    url: string;
+    summaryText: string;
+    sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+}
+
 export function isGamingLaptop(specs: ProductSpecs): boolean {
     return specs.gpu.includes('RTX') || specs.gpu.includes('GTX') || specs.gpu.includes('Radeon RX');
 }
