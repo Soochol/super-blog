@@ -1,0 +1,56 @@
+[
+    {
+        "id": "macbook-pro-16",
+        "categoryId": "laptop",
+        "name": "Apple 2026 맥북 프로 16 M4 Max",
+        "price": 4290000,
+        "brand": "Apple",
+        "specs": {
+            "cpu": "Apple M4 Max (16코어)",
+            "ram": "36GB 통합 메모리",
+            "storage": "1TB SSD",
+            "gpu": "Apple M4 Max (40코어)",
+            "display": "16.2인치 Liquid Retina XDR (120Hz)",
+            "weight": 2.14,
+            "os": "macOS"
+        },
+        "imageUrl": "https://via.placeholder.com/600x400.png?text=MacBook+Pro+16",
+        "couponUrl": "https://coupang.com/placeholder-macbook"
+    },
+    {
+        "id": "galaxy-book-4-pro",
+        "categoryId": "laptop",
+        "name": "삼성전자 2026 갤럭시북4 프로 16",
+        "price": 1890000,
+        "brand": "Samsung",
+        "specs": {
+            "cpu": "Intel Core Ultra 7 155H",
+            "ram": "32GB LPDDR5X",
+            "storage": "512GB NVMe SSD",
+            "gpu": "Intel Arc Graphics",
+            "display": "16인치 Dynamic AMOLED 2X (120Hz)",
+            "weight": 1.56,
+            "os": "Windows 11 Home"
+        },
+        "imageUrl": "https://via.placeholder.com/600x400.png?text=Galaxy+Book+4+Pro",
+        "couponUrl": "https://coupang.com/placeholder-galaxybook"
+    },
+    {
+        "id": "rog-strix-g16",
+        "categoryId": "laptop",
+        "name": "ASUS ROG Strix G16",
+        "price": 2450000,
+        "brand": "ASUS",
+        "specs": {
+            "cpu": "Intel Core i9-14900HX",
+            "ram": "32GB DDR5",
+            "storage": "1TB PCIe 4.0 SSD",
+            "gpu": "NVIDIA GeForce RTX 4070 (140W)",
+            "display": "16인치 QHD+ 타깃 디스플레이 (240Hz)",
+            "weight": 2.50,
+            "os": "Windows 11 Home"
+        },
+        "imageUrl": "https://via.placeholder.com/600x400.png?text=ROG+Strix+G16",
+        "couponUrl": "https://coupang.com/placeholder-rog"
+    }
+]
