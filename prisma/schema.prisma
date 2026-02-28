@@ -147,7 +147,7 @@ enum TriggerSource {
 }
 
 model PipelineJob {
-  id          String        @id @default(cuid())
+  id          String        @id @default(uuid())
   status      JobStatus     @default(PENDING)
   triggeredBy TriggerSource
   category    String
@@ -156,12 +156,14 @@ model PipelineJob {
   completedAt DateTime?
   createdAt   DateTime      @default(now())
   logs        PipelineLog[]
+
+  @@index([status, createdAt])
 }
 
 model PipelineLog {
-  id        String      @id @default(cuid())
+  id        String      @id @default(uuid())
   jobId     String
-  job       PipelineJob @relation(fields: [jobId], references: [id])
+  job       PipelineJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
   message   String
   createdAt DateTime    @default(now())
 
@@ -169,7 +171,7 @@ model PipelineLog {
 }
 
 model PipelineSchedule {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   enabled   Boolean  @default(false)
   frequency String   @default("daily")
   hour      Int      @default(3)
