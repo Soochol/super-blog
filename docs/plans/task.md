@@ -23,8 +23,8 @@
 | Ask clarifying questions | [x] | Defined DB (Prisma) and Crawler (Playwright). |
 | Propose 2-3 approaches | [x] | Confirmed Vercel AI SDK + Claude/Gemini. |
 | Present design | [x] | User approved design with Gemini 3.1 Pro and Claude 4.6 Sonnet. |
-| Write design doc | [/] | Writing docs/plans/2026-02-28-backend-infrastructure-design.md |
-| Invoke writing-plans skill | [ ] | |
+| Write design doc | [x] | Created docs/plans/2026-02-28-backend-infrastructure-design.md |
+| Invoke writing-plans skill | [x] | Created docs/plans/2026-02-28-backend-infrastructure-implementation-plan.md |
 
 ## Backend DDD Implementation
 | Task | Status | Note |
