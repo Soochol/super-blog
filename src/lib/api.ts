@@ -48,6 +48,17 @@ export const getReviewByProductId = async (productId: string): Promise<Review | 
     };
 };
 
+export const getComparisonReviews = async (
+    productIdA: string,
+    productIdB: string
+): Promise<{ reviewA?: Review; reviewB?: Review }> => {
+    const [reviewA, reviewB] = await Promise.all([
+        getReviewByProductId(productIdA),
+        getReviewByProductId(productIdB),
+    ]);
+    return { reviewA, reviewB };
+};
+
 function mapProductToFrontend(p: {
     slug: string;
     maker: string;

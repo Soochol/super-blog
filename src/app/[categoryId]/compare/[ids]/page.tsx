@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCategories, getProductsByCategory, getProductById } from '@/lib/api';
+import { getCategories, getProductsByCategory, getProductById, getReviewByProductId } from '@/lib/api';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
 
 const IDS_SEPARATOR = '-vs-';
@@ -55,6 +55,11 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
         notFound();
     }
 
+    const [reviewA, reviewB] = await Promise.all([
+        getReviewByProductId(productA.id),
+        getReviewByProductId(productB.id),
+    ]);
+
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl">
             <div className="text-center mb-16 mt-8">
@@ -98,6 +103,38 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
                 </h3>
                 <ProductSpecTable productA={productA} productB={productB} />
             </div>
+
+            {(reviewA || reviewB) && (
+                <div className="mb-10">
+                    <h3 className="text-3xl font-black text-white bg-black inline-block px-4 py-2 mb-8 border-4 border-black shadow-hard uppercase">
+                        AI 리뷰 비교
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {reviewA && (
+                            <div className="bg-neo-blue p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                <h4 className="text-xl font-black text-black mb-4 bg-white px-2 py-1 border-2 border-black inline-block">{productA.name}</h4>
+                                <p className="text-black font-bold mb-4">"{reviewA.summary}"</p>
+                                <div className="space-y-2">
+                                    {reviewA.pros.map((p, i) => (
+                                        <p key={i} className="text-black font-bold">{'\u25BA'} {p}</p>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {reviewB && (
+                            <div className="bg-neo-pink p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                <h4 className="text-xl font-black text-black mb-4 bg-white px-2 py-1 border-2 border-black inline-block">{productB.name}</h4>
+                                <p className="text-black font-bold mb-4">"{reviewB.summary}"</p>
+                                <div className="space-y-2">
+                                    {reviewB.pros.map((p, i) => (
+                                        <p key={i} className="text-black font-bold">{'\u25BA'} {p}</p>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
