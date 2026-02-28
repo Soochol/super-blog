@@ -195,29 +195,85 @@ LLM이 스스로:
 
 **도구 구현 방식:**
 
-```typescript
-// src/cli/tools/ 디렉토리에 각 도구를 독립 스크립트로 구현
-// claude -p의 --allowedTools에서 Bash 도구로 연결
+도구 로직은 `src/cli/tools/`에 독립 스크립트로 구현. 이 로직은 `claude -p`와 LLM API 모드 **양쪽에서 동일하게** 사용된다.
 
-// 또는 MCP 서버로 구현하여 claude --mcp-config로 연결
-// src/infrastructure/mcp/pipeline-server.ts
+```
+src/cli/tools/
+├── crawl_url.ts        # Playwright로 URL 크롤링 → HTML 반환
+├── extract_specs.ts    # Gemini로 HTML에서 스펙 추출 → JSON 반환
+├── save_product.ts     # Prisma로 제품 DB 저장
+├── download_image.ts   # 이미지 다운로드 + sharp 가공
+├── query_products.ts   # DB에서 제품 조회
+└── save_review.ts      # 리뷰 DB 저장
 ```
 
-### 2-7. `claude -p` / LLM API 호출 방식
+### 2-7. 도구 바인딩: claude -p vs LLM API
+
+도구 정의(무엇을 하는가)는 공통이고, 바인딩(LLM에 어떻게 전달하는가)만 다르다.
+
+```
+                    도구 정의 (공통)
+                    src/cli/tools/*
+                           │
+              ┌────────────┴────────────┐
+              ▼                          ▼
+     claude -p (지금)              LLM API (나중)
+     --allowedTools로              tools 파라미터로
+     Bash 바인딩                   JSON 스키마 바인딩
+```
+
+**claude -p 모드 (현재):**
+
+```bash
+# --allowedTools로 Bash 도구 바인딩
+claude -p "맥북 프로 크롤링하고 DB에 저장해줘" \
+  --system-prompt "$(cat skill-system-prompt.txt)" \
+  --allowedTools "Bash(npx tsx src/cli/tools/crawl_url.ts:*),Bash(npx tsx src/cli/tools/save_product.ts:*)"
+```
+
+LLM이 Bash 도구를 통해 우리 스크립트를 호출. claude -p가 tool use 루프를 자동 관리.
+
+**LLM API 모드 (나중에 전환 시):**
 
 ```typescript
-// src/infrastructure/ai/ClaudeCliAdapter.ts
-class ClaudeCliAdapter implements LlmRunner {
+// src/infrastructure/ai/ClaudeApiAdapter.ts
+class ClaudeApiAdapter implements LlmRunner {
   async run(prompt: string, opts: LlmRunOptions): Promise<string> {
-    const args = ['-p', prompt];
-    if (opts.system) args.push('--system-prompt', opts.system);
-    if (opts.model) args.push('--model', opts.model);
-    if (opts.tools?.length) args.push('--allowedTools', opts.tools.join(','));
-    const { stdout } = await execFileAsync('claude', args, { timeout: 300_000 });
-    return stdout.trim();
+    // 같은 도구 정의를 Anthropic API tools 파라미터로 변환
+    const tools = opts.tools?.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.inputSchema,
+    }));
+
+    let messages = [{ role: 'user', content: prompt }];
+
+    // Tool use 루프: LLM 응답 → 도구 호출 → 결과 반환 반복
+    while (true) {
+      const response = await anthropic.messages.create({
+        model: opts.model ?? 'claude-sonnet-4-20250514',
+        system: opts.system,
+        messages,
+        tools,
+      });
+
+      if (response.stop_reason === 'end_turn') {
+        return response.content[0].text;
+      }
+
+      // tool_use 블록 처리: 같은 src/cli/tools/ 함수를 직접 호출
+      for (const block of response.content) {
+        if (block.type === 'tool_use') {
+          const result = await executeToolLocally(block.name, block.input);
+          messages.push({ role: 'tool', tool_use_id: block.id, content: result });
+        }
+      }
+    }
   }
 }
 ```
+
+**핵심:** `src/cli/tools/`의 도구 로직은 어떤 모드에서든 재사용. 어댑터만 교체하면 `claude -p` → API 전환 완료.
 
 ### 2-8. 포트/어댑터 전환 구조
 
@@ -227,10 +283,10 @@ SpecExtractor (포트)        →  GeminiAdapter (지금) / 다른 모델 (나�
 SkillRepository (포트)      →  PrismaSkillRepository (지금)
 ```
 
-LlmRunner + Skill + Tools 조합으로 단순화:
-- **Skill**: "무엇을 할지" (프롬프트 템플릿)
-- **Tools**: "어떤 능력이 있는지" (도구 정의)
-- **LlmRunner**: "어떻게 실행할지" (claude -p 또는 API)
+**Skill + Tools + LlmRunner 3요소:**
+- **Skill**: "무엇을 할지" (프롬프트 템플릿, DB에 저장)
+- **Tools**: "어떤 능력이 있는지" (도구 로직, `src/cli/tools/`)
+- **LlmRunner**: "어떻게 실행할지" (claude -p 또는 API, 어댑터 교체만으로 전환)
 
 ### 2-8. DB 스키마
 
