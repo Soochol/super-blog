@@ -10,6 +10,7 @@ const mockPrisma = {
         findMany: jest.fn(),
     },
     productReview: {
+        deleteMany: jest.fn(),
         create: jest.fn(),
     },
 };
@@ -108,6 +109,7 @@ describe('generate-review CLI', () => {
             mockPrisma.product.findUnique.mockResolvedValue(sampleDbProduct);
             mockPrisma.webReviewReference.findMany.mockResolvedValue(sampleDbWebReviews);
             mockWriteComprehensiveReview.mockResolvedValue(sampleReview);
+            mockPrisma.productReview.deleteMany.mockResolvedValue({ count: 0 });
             mockPrisma.productReview.create.mockResolvedValue({ id: 'review-uuid-1', ...sampleReview });
 
             // Act
@@ -147,6 +149,16 @@ describe('generate-review CLI', () => {
                 ]),
             );
 
+            // Assert: existing reviews deleted before creating new one
+            expect(mockPrisma.productReview.deleteMany).toHaveBeenCalledWith({
+                where: { productId: 'product-uuid-123' },
+            });
+
+            // Assert: deleteMany called before create
+            const deleteOrder = mockPrisma.productReview.deleteMany.mock.invocationCallOrder[0];
+            const createOrder = mockPrisma.productReview.create.mock.invocationCallOrder[0];
+            expect(deleteOrder).toBeLessThan(createOrder);
+
             // Assert: review saved to DB
             expect(mockPrisma.productReview.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
@@ -174,6 +186,7 @@ describe('generate-review CLI', () => {
             // Should not attempt to load reviews or generate content
             expect(mockPrisma.webReviewReference.findMany).not.toHaveBeenCalled();
             expect(mockWriteComprehensiveReview).not.toHaveBeenCalled();
+            expect(mockPrisma.productReview.deleteMany).not.toHaveBeenCalled();
             expect(mockPrisma.productReview.create).not.toHaveBeenCalled();
         });
     });

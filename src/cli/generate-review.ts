@@ -44,7 +44,8 @@ export async function generateAndSaveReview(slug: string): Promise<ProductReview
     const service = new CritiqueWritingService(generator);
     const review = await service.writeComprehensiveReview(specs, references);
 
-    // Save to DB
+    // Save to DB — replace any existing review for this product
+    await prisma.productReview.deleteMany({ where: { productId: product.id } });
     await prisma.productReview.create({
         data: {
             productId: product.id,
@@ -54,8 +55,8 @@ export async function generateAndSaveReview(slug: string): Promise<ProductReview
             recommendedFor: review.recommendedFor,
             notRecommendedFor: review.notRecommendedFor,
             specHighlights: review.specHighlights,
-            strategy: review.strategy ?? undefined,
-            sentimentAnalysis: review.sentimentAnalysis ?? undefined,
+            strategy: review.strategy ?? null,
+            sentimentAnalysis: review.sentimentAnalysis ?? null,
         },
     });
 
