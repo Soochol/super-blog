@@ -1,0 +1,15 @@
+# docker-compose.yml
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: superblog
+      POSTGRES_USER: superblog
+      POSTGRES_PASSWORD: superblog
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
