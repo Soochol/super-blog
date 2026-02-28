@@ -19,7 +19,7 @@ export class ClaudeContentGenerator implements ContentGenerator {
         const skill = await this.loadSkill('generate-review');
         const specs: ProductSpecs = JSON.parse(specsJson);
 
-        const prompt = injectContextToPrompt(skill.userPromptTemplate, {
+        const basePrompt = injectContextToPrompt(skill.userPromptTemplate, {
             maker: specs.maker,
             model: specs.model,
             cpu: specs.cpu,
@@ -31,6 +31,8 @@ export class ClaudeContentGenerator implements ContentGenerator {
             os: specs.os,
             price: String(specs.price),
         });
+
+        const prompt = `${basePrompt}\n\n전략 컨텍스트: ${JSON.stringify(strategy)}\n\nJSON으로 답변해줘. 형식: {"summary":"","pros":[],"cons":[],"recommendedFor":"","notRecommendedFor":"","specHighlights":[]}`;
 
         const response = await this.llm.run(prompt, {
             system: skill.systemPromptTemplate,
@@ -58,36 +60,45 @@ export class ClaudeContentGenerator implements ContentGenerator {
     }
 
     async generateProductStrategy(specs: ProductSpecs): Promise<ProductStrategy> {
-        const prompt = `Analyze the following product and generate a marketing strategy as JSON.
+        const skill = await this.loadSkill('generate-review');
 
-Product: ${specs.maker} ${specs.model}
-CPU: ${specs.cpu}, RAM: ${specs.ram}GB, Storage: ${specs.storage}
-GPU: ${specs.gpu}, Display: ${specs.display_size}", Weight: ${specs.weight}kg
-OS: ${specs.os}, Price: ${specs.price} KRW
+        const prompt = `다음 제품을 분석하고 마케팅 전략을 JSON으로 생성해주세요.
 
-Return JSON with: targetAudience (string[]), keySellingPoints (string[]), competitors (string[]), positioning (string).`;
+제품: ${specs.maker} ${specs.model}
+CPU: ${specs.cpu}, RAM: ${specs.ram}GB, 저장장치: ${specs.storage}
+GPU: ${specs.gpu}, 디스플레이: ${specs.display_size}인치, 무게: ${specs.weight}kg
+OS: ${specs.os}, 가격: ${specs.price}원
+
+JSON 형식: {"targetAudience":[],"keySellingPoints":[],"competitors":[],"positioning":""}`;
 
         const response = await this.llm.run(prompt, {
-            temperature: 0.7,
+            system: skill.systemPromptTemplate,
+            model: skill.model,
+            temperature: skill.temperature,
         });
 
         return this.parseJson<ProductStrategy>(response);
     }
 
     async analyzeWebSentiments(reviews: WebReviewReference[]): Promise<SentimentAnalysis> {
+        const skill = await this.loadSkill('generate-review');
+
         const reviewSummaries = reviews
             .map((r) => `[${r.source}] (${r.sentiment}) ${r.summaryText}`)
             .join('\n');
 
-        const prompt = `Analyze the following web review summaries and provide a sentiment analysis as JSON.
+        const prompt = `다음 웹 리뷰 요약을 분석하고 감성 분석 결과를 JSON으로 제공해주세요.
 
-Reviews:
+리뷰:
 ${reviewSummaries}
 
-Return JSON with: overallScore (0-100), commonPraises (string[]), commonComplaints (string[]), reliability ("HIGH" | "MEDIUM" | "LOW").`;
+JSON 형식: {"overallScore":0,"commonPraises":[],"commonComplaints":[],"reliability":"HIGH"}
+overallScore는 0-100, reliability는 "HIGH", "MEDIUM", "LOW" 중 하나로 답변해주세요.`;
 
         const response = await this.llm.run(prompt, {
-            temperature: 0.3,
+            system: skill.systemPromptTemplate,
+            model: skill.model,
+            temperature: skill.temperature,
         });
 
         return this.parseJson<SentimentAnalysis>(response);
@@ -120,10 +131,12 @@ Return JSON with: overallScore (0-100), commonPraises (string[]), commonComplain
     }
 
     private parseJson<T>(text: string): T {
-        const match = text.match(/\{[\s\S]*\}/);
-        if (!match) {
-            throw new Error(`Failed to extract JSON from LLM response: ${text.substring(0, 200)}`);
+        try {
+            return JSON.parse(text) as T;
+        } catch {
+            const match = text.match(/\{[\s\S]*\}/);
+            if (!match) throw new Error(`Failed to extract JSON from LLM response: ${text.substring(0, 200)}`);
+            return JSON.parse(match[0]) as T;
         }
-        return JSON.parse(match[0]) as T;
     }
 }
