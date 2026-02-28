@@ -5,4 +5,5 @@ export interface ProductRepository {
     saveCrawlHistory(productId: string, history: CrawlHistory): Promise<void>;
     saveWebReviews(productId: string, reviews: WebReviewReference[]): Promise<void>;
     findBySlug(slug: string): Promise<ProductSpecs | null>;
+    updateImageUrl(productId: string, imageUrl: string): Promise<void>;
 }

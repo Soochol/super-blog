@@ -60,6 +60,13 @@ export class PrismaProductRepository implements ProductRepository {
         });
     }
 
+    async updateImageUrl(productId: string, imageUrl: string): Promise<void> {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { imageUrl },
+        });
+    }
+
     async findBySlug(slug: string): Promise<ProductSpecs | null> {
         const product = await prisma.product.findUnique({
             where: { slug },
