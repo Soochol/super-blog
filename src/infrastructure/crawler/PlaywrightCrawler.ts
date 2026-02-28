@@ -31,7 +31,9 @@ export class PlaywrightCrawler implements Crawler {
             // Block unnecessary resources to speed up crawling
             await page.route('**/*.{png,jpg,jpeg,gif,svg,css,woff2}', route => route.abort());
 
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            // Wait briefly for JS-rendered content to populate
+            await page.waitForTimeout(3000);
             const html = await page.content();
 
             return { url, html };

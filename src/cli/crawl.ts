@@ -10,6 +10,15 @@ import sharp from 'sharp';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 
+/** Strip script/style tags and extract body for cleaner LLM input */
+function stripHtmlNoise(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<head[\s\S]*?<\/head>/gi, '')
+    .replace(/\s{2,}/g, ' ');
+}
+
 export function buildSlug(maker: string, model: string): string {
   return `${maker}-${model}`
     .toLowerCase()
@@ -75,23 +84,32 @@ async function main() {
     // Extract product image using Skill (not hardcoded prompt!)
     const imageSkill = await skillRepo.findByName('extract-product-image');
     if (imageSkill) {
-      const imagePrompt = injectContextToPrompt(imageSkill.userPromptTemplate, {
-        html: rawData.html.substring(0, 10000),
-      });
-      const imageUrlResponse = await llm.run(imagePrompt, {
-        system: imageSkill.systemPromptTemplate,
-        model: imageSkill.model,
-        temperature: imageSkill.temperature,
-      });
-      const imageUrls = imageUrlResponse.match(/https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp)/i);
+      try {
+        const cleanedHtml = stripHtmlNoise(rawData.html);
+        const imagePrompt = injectContextToPrompt(imageSkill.userPromptTemplate, {
+          html: cleanedHtml.substring(0, 30000),
+        });
+        const imageUrlResponse = await llm.run(imagePrompt, {
+          system: imageSkill.systemPromptTemplate,
+          model: imageSkill.model,
+          temperature: imageSkill.temperature,
+        });
+        console.log(`  LLM image response: ${imageUrlResponse.substring(0, 300)}`);
+        const imageUrls = imageUrlResponse.match(/(?:https?:)?\/\/[^\s"'<>`]+\.(jpg|jpeg|png|webp)/i);
 
-      if (imageUrls?.[0]) {
-        console.log(`Downloading image: ${imageUrls[0]}`);
-        const localImagePath = await downloadAndProcessImage(imageUrls[0], slug);
-        if (localImagePath) {
-          await repo.updateImageUrl(productId, localImagePath);
-          console.log(`Image saved: ${localImagePath}`);
+        if (imageUrls?.[0]) {
+          const fullImageUrl = imageUrls[0].startsWith('//') ? `https:${imageUrls[0]}` : imageUrls[0];
+          console.log(`Downloading image: ${fullImageUrl}`);
+          const localImagePath = await downloadAndProcessImage(fullImageUrl, slug);
+          if (localImagePath) {
+            await repo.updateImageUrl(productId, localImagePath);
+            console.log(`Image saved: ${localImagePath}`);
+          }
+        } else {
+          console.log('  No image URL found in LLM response');
         }
+      } catch (error) {
+        console.error(`  Image extraction failed: ${(error as Error).message}`);
       }
     } else {
       console.warn('Skill "extract-product-image" not found. Skipping image extraction.');
