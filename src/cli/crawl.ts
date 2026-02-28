@@ -17,7 +17,7 @@ export function buildSlug(maker: string, model: string): string {
     .replace(/[^a-z0-9가-힣\-]/g, '');
 }
 
-async function downloadAndProcessImage(
+export async function downloadAndProcessImage(
   imageUrl: string,
   slug: string
 ): Promise<string | null> {
