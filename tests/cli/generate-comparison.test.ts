@@ -26,7 +26,7 @@ jest.mock('@/infrastructure/ai/ClaudeContentGenerator', () => ({
     })),
 }));
 
-import { generateAndSaveComparison } from '@/cli/generate-comparison';
+import { generateComparison } from '@/cli/generate-comparison';
 
 const sampleDbProductA = {
     id: 'product-uuid-aaa',
@@ -71,7 +71,7 @@ describe('generate-comparison CLI', () => {
         jest.clearAllMocks();
     });
 
-    describe('generateAndSaveComparison', () => {
+    describe('generateComparison', () => {
         it('loads both products, generates comparison, and returns text', async () => {
             // Arrange
             mockPrisma.product.findUnique
@@ -80,7 +80,7 @@ describe('generate-comparison CLI', () => {
             mockGenerateComparison.mockResolvedValue(sampleComparisonText);
 
             // Act
-            const result = await generateAndSaveComparison('apple-macbook-pro-14', 'samsung-galaxy-book4');
+            const result = await generateComparison('apple-macbook-pro-14', 'samsung-galaxy-book4');
 
             // Assert: both products looked up by slug
             expect(mockPrisma.product.findUnique).toHaveBeenCalledTimes(2);
@@ -125,7 +125,7 @@ describe('generate-comparison CLI', () => {
 
             // Act & Assert
             await expect(
-                generateAndSaveComparison('non-existent-slug', 'samsung-galaxy-book4'),
+                generateComparison('non-existent-slug', 'samsung-galaxy-book4'),
             ).rejects.toThrow('Product "non-existent-slug" not found');
 
             // Should only attempt one lookup and not proceed further
@@ -141,7 +141,7 @@ describe('generate-comparison CLI', () => {
 
             // Act & Assert
             await expect(
-                generateAndSaveComparison('apple-macbook-pro-14', 'non-existent-slug'),
+                generateComparison('apple-macbook-pro-14', 'non-existent-slug'),
             ).rejects.toThrow('Product "non-existent-slug" not found');
 
             // Should have looked up both products but not generated comparison

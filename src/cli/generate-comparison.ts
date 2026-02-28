@@ -4,7 +4,7 @@ import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
 import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
 import { ClaudeContentGenerator } from '../infrastructure/ai/ClaudeContentGenerator';
 
-export async function generateAndSaveComparison(slugA: string, slugB: string): Promise<string> {
+export async function generateComparison(slugA: string, slugB: string): Promise<string> {
     const productA = await prisma.product.findUnique({ where: { slug: slugA } });
     if (!productA) throw new Error(`Product "${slugA}" not found`);
 
@@ -31,7 +31,7 @@ async function main() {
     }
 
     try {
-        const comparison = await generateAndSaveComparison(slugA, slugB);
+        const comparison = await generateComparison(slugA, slugB);
         console.log('\n--- Generated Comparison ---');
         console.log(comparison);
     } catch (error) {
