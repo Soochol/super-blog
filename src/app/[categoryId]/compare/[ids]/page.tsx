@@ -55,40 +55,43 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl">
-            <div className="text-center mb-10">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
-                    <span className="text-blue-600">{productA.brand}</span> vs <span className="text-[#FF9B00]">{productB.brand}</span>
+            <div className="text-center mb-16 mt-8">
+                <h1 className="text-4xl md:text-5xl font-black text-black mb-6 tracking-tight uppercase leading-snug">
+                    <span className="bg-neo-blue text-white px-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] inline-block mb-2 md:mb-0 mr-2">{productA.brand}</span>
+                    <span className="mx-2 text-3xl">VS</span>
+                    <span className="bg-neo-pink text-black px-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] inline-block">{productB.brand}</span>
                 </h1>
-                <p className="text-xl text-gray-600">어떤 제품이 나에게 더 맞을까?</p>
+                <p className="text-2xl font-bold text-black bg-neo-yellow inline-block px-4 py-1 border-2 border-black uppercase">어떤 제품이 나에게 더 맞을까?</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 md:gap-8 mb-12">
-                <div className="text-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full">
-                    <div className="h-40 flex items-center justify-center mb-4 p-2">
+            <div className="grid grid-cols-2 gap-4 md:gap-12 mb-16 relative">
+                <div className="text-center bg-white p-6 border-4 border-black shadow-hard flex flex-col h-full transform hover:-translate-y-1 transition-transform">
+                    <div className="h-40 flex items-center justify-center mb-6 p-2 bg-gray-50 border-4 border-black">
                         <img src={productA.imageUrl} alt={productA.name} className="max-h-full object-contain mix-blend-multiply" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-2 truncate" title={productA.name}>{productA.name}</h2>
+                    <h2 className="text-xl font-black text-black mb-4 uppercase line-clamp-2">{productA.name}</h2>
                     <div className="mt-auto">
-                        <p className="text-2xl font-black text-blue-600 mb-1">{productA.price.toLocaleString()}원</p>
+                        <p className="text-3xl font-black text-black bg-neo-yellow inline-block px-2 border-2 border-black">{productA.price.toLocaleString()}원</p>
                     </div>
                 </div>
 
-                <div className="text-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full relative">
-                    <div className="absolute top-1/2 -left-4 md:-left-8 -translate-y-1/2 w-8 h-8 md:w-16 md:h-16 rounded-full bg-gray-900 text-white flex items-center justify-center font-black text-sm md:text-2xl z-10 border-4 border-gray-50">
-                        VS
-                    </div>
-                    <div className="h-40 flex items-center justify-center mb-4 p-2">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 md:w-24 md:h-24 rounded-none bg-neo-yellow border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black flex items-center justify-center font-black text-2xl md:text-4xl z-10 rotate-12">
+                    VS
+                </div>
+
+                <div className="text-center bg-white p-6 border-4 border-black shadow-hard flex flex-col h-full transform hover:-translate-y-1 transition-transform">
+                    <div className="h-40 flex items-center justify-center mb-6 p-2 bg-gray-50 border-4 border-black">
                         <img src={productB.imageUrl} alt={productB.name} className="max-h-full object-contain mix-blend-multiply" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-2 truncate" title={productB.name}>{productB.name}</h2>
+                    <h2 className="text-xl font-black text-black mb-4 uppercase line-clamp-2">{productB.name}</h2>
                     <div className="mt-auto">
-                        <p className="text-2xl font-black text-[#FF9B00] mb-1">{productB.price.toLocaleString()}원</p>
+                        <p className="text-3xl font-black text-black bg-neo-yellow inline-block px-2 border-2 border-black">{productB.price.toLocaleString()}원</p>
                     </div>
                 </div>
             </div>
 
             <div className="mb-10">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 px-2 border-l-4 border-gray-900">
+                <h3 className="text-3xl font-black text-white bg-black inline-block px-4 py-2 mb-8 border-4 border-black shadow-hard uppercase">
                     핵심 스펙 나란히 보기
                 </h3>
                 <ProductSpecTable productA={productA} productB={productB} />

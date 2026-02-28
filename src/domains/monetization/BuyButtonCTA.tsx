@@ -18,18 +18,18 @@ export default function BuyButtonCTA({
     className = ''
 }: BuyButtonCTAProps) {
 
-    const baseStyles = "inline-flex items-center justify-center font-bold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
+    const baseStyles = "inline-flex flex-col items-center justify-center font-black border-4 border-black text-black shadow-hard uppercase transition-all hover:-translate-y-1 hover:-translate-x-1 hover:shadow-hard-lg active:translate-y-1 active:translate-x-1 active:shadow-none focus:outline-none focus:ring-4 focus:ring-black focus:ring-offset-2";
 
     const variantStyles = {
-        primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow",
-        secondary: "bg-[#FF9B00] text-white hover:bg-[#E58C00] focus:ring-[#FF9B00] shadow-sm hover:shadow", // Coupang Orange
-        outline: "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500"
+        primary: "bg-neo-pink hover:bg-pink-400",
+        secondary: "bg-neo-orange hover:bg-orange-400",
+        outline: "bg-white hover:bg-gray-100"
     };
 
     const sizeStyles = {
-        sm: "px-3 py-1.5 text-sm gap-1.5",
-        md: "px-5 py-2.5 text-base gap-2",
-        lg: "px-8 py-3.5 text-lg gap-2.5 w-full"
+        sm: "px-4 py-2 text-sm gap-2",
+        md: "px-6 py-3 text-base gap-2",
+        lg: "px-8 py-4 text-xl gap-3 w-full"
     };
 
     return (

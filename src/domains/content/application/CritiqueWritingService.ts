@@ -1,5 +1,5 @@
 import { ContentGenerator } from '../domain/ports/ContentGenerator';
-import { ProductSpecs, WebReviewReference } from '../../../product/domain/ProductSpecs';
+import { ProductSpecs, WebReviewReference } from '../../product/domain/ProductSpecs';
 
 export class CritiqueWritingService {
     constructor(private generator: ContentGenerator) { }

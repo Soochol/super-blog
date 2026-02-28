@@ -29,54 +29,54 @@ export default function ProductSpecTable({ productA, productB }: ProductSpecTabl
     ];
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-            <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
+        <div className="overflow-x-auto border-4 border-black bg-white shadow-hard">
+            <table className="w-full text-sm text-left border-collapse">
+                <thead className="bg-neo-yellow text-black font-black border-b-4 border-black">
                     <tr>
-                        <th scope="col" className="px-6 py-4 w-1/4 min-w-[120px]">
+                        <th scope="col" className="px-6 py-4 w-1/4 min-w-[120px] uppercase text-lg">
                             스펙 항목
                         </th>
-                        <th scope="col" className={`px-6 py-4 ${isCompare ? 'w-[37.5%]' : 'w-3/4'} text-center border-l border-gray-200`}>
+                        <th scope="col" className={`px-6 py-4 ${isCompare ? 'w-[37.5%]' : 'w-3/4'} text-center border-l-4 border-black bg-white`}>
                             <div className="flex flex-col items-center">
-                                <span className="text-xs text-blue-600 mb-1 bg-blue-50 px-2 py-0.5 rounded-full">{productA.brand}</span>
-                                <span className="text-base break-keep text-gray-900">{productA.name}</span>
+                                <span className="text-xs font-black text-white mb-2 bg-neo-blue px-2 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">{productA.brand}</span>
+                                <span className="text-xl font-black break-keep text-black uppercase">{productA.name}</span>
                             </div>
                         </th>
                         {isCompare && (
-                            <th scope="col" className="px-6 py-4 w-[37.5%] text-center border-l border-gray-200 bg-gray-50/50">
+                            <th scope="col" className="px-6 py-4 w-[37.5%] text-center border-l-4 border-black bg-white">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-xs text-blue-600 mb-1 bg-blue-50 px-2 py-0.5 rounded-full">{productB.brand}</span>
-                                    <span className="text-base break-keep text-gray-900">{productB.name}</span>
+                                    <span className="text-xs font-black text-white mb-2 bg-neo-pink px-2 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase">{productB.brand}</span>
+                                    <span className="text-xl font-black break-keep text-black uppercase">{productB.name}</span>
                                 </div>
                             </th>
                         )}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                    <tr>
-                        <th scope="row" className="px-6 py-4 font-medium text-gray-900 bg-gray-50/30">
+                <tbody className="divide-y-2 divide-black">
+                    <tr className="border-b-4 border-black bg-gray-50">
+                        <th scope="row" className="px-6 py-4 font-black text-black text-base uppercase">
                             가격
                         </th>
-                        <td className="px-6 py-4 text-center border-l border-gray-100 font-bold text-gray-900 text-lg">
+                        <td className="px-6 py-4 text-center border-l-2 border-black font-black text-black text-2xl">
                             {productA.price.toLocaleString()}원
                         </td>
                         {isCompare && (
-                            <td className="px-6 py-4 text-center border-l border-gray-100 font-bold text-gray-900 text-lg">
+                            <td className="px-6 py-4 text-center border-l-2 border-black font-black text-black text-2xl">
                                 {productB.price.toLocaleString()}원
                             </td>
                         )}
                     </tr>
 
                     {specRows.map((row) => (
-                        <tr key={row.key} className="hover:bg-gray-50/50 transition-colors">
-                            <th scope="row" className="px-6 py-4 font-medium text-gray-700 bg-gray-50/30">
+                        <tr key={row.key} className="hover:bg-neo-yellow/20 transition-colors">
+                            <th scope="row" className="px-6 py-4 font-black text-black text-base uppercase bg-gray-50 border-r-2 border-black">
                                 {row.label}
                             </th>
-                            <td className="px-6 py-4 text-center border-l border-gray-100 text-gray-600">
+                            <td className="px-6 py-4 text-center text-black font-bold text-base">
                                 {renderSpecValue(productA.specs[row.key])} {row.unit && productA.specs[row.key] ? row.unit : ''}
                             </td>
                             {isCompare && (
-                                <td className="px-6 py-4 text-center border-l border-gray-100 text-gray-600">
+                                <td className="px-6 py-4 text-center border-l-2 border-black text-black font-bold text-base">
                                     {renderSpecValue(productB.specs[row.key])} {row.unit && productB.specs[row.key] ? row.unit : ''}
                                 </td>
                             )}

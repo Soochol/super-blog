@@ -41,13 +41,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
     );
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-10">
-                <h1 className="text-3xl font-bold text-gray-900 mb-3">{category.name} 추천</h1>
-                <p className="text-gray-600">{category.description}</p>
+        <div className="container mx-auto px-4 py-12">
+            <div className="mb-12 border-4 border-black shadow-hard bg-neo-pink p-8">
+                <h1 className="text-4xl md:text-5xl font-black text-black mb-4 uppercase inline-block bg-white px-2 py-1 border-2 border-black">{category.name} 추천</h1>
+                <p className="text-xl font-bold text-black mt-2 bg-white/80 inline-block px-3 py-1 border-2 border-black">{category.description}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {productsWithReviews.map(({ product, review }, index) => (
                     <ProductCard
                         key={product.id}
