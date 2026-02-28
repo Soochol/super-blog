@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Footer() {
     return (
         <footer className="bg-white border-t-4 border-black mt-auto">
@@ -12,17 +14,14 @@ export default function Footer() {
                     <div>
                         <h3 className="font-black text-lg text-black mb-4 bg-neo-green inline-block px-1">카테고리</h3>
                         <ul className="space-y-3 font-bold text-black">
-                            <li><a href="/laptop" className="hover:text-neo-pink hover:underline transition-colors">노트북 리뷰</a></li>
-                            <li><a href="#" className="hover:text-neo-blue hover:underline transition-colors">태블릿 추천</a></li>
-                            <li><a href="#" className="hover:text-neo-orange hover:underline transition-colors">스마트폰 매치업</a></li>
+                            <li><Link href="/laptop" className="hover:text-neo-pink hover:underline transition-colors">노트북 리뷰</Link></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-black text-lg text-black mb-4 bg-neo-blue inline-block px-1 text-white">정보</h3>
                         <ul className="space-y-3 font-bold text-black">
-                            <li><a href="#" className="hover:underline transition-colors">이용약관</a></li>
-                            <li><a href="#" className="hover:underline transition-colors">개인정보처리방침</a></li>
-                            <li><a href="#" className="hover:underline transition-colors">제휴 문의</a></li>
+                            <li><Link href="/terms" className="hover:underline transition-colors">이용약관</Link></li>
+                            <li><Link href="/privacy" className="hover:underline transition-colors">개인정보처리방침</Link></li>
                         </ul>
                     </div>
                 </div>

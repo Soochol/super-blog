@@ -1,36 +1,39 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategories, getProductsByCategory, getProductById } from '@/lib/api';
-import ProductSpecTable from '@/domains/product/ProductSpecTable';
+import ProductSpecTable from '@/components/product/ProductSpecTable';
+
+const IDS_SEPARATOR = '-vs-';
 
 export async function generateStaticParams() {
     const categories = await getCategories();
-    const paths: { categoryId: string, ids: string }[] = [];
 
-    for (const category of categories) {
-        const products = await getProductsByCategory(category.id);
-        // Generate simple combinations A vs B for demonstration
-        for (let i = 0; i < products.length; i++) {
-            for (let j = i + 1; j < products.length; j++) {
-                paths.push({
-                    categoryId: category.id,
-                    ids: `${products[i].id}-vs-${products[j].id}`
-                });
+    const allPaths = await Promise.all(
+        categories.map(async (category) => {
+            const products = await getProductsByCategory(category.id);
+            const paths: { categoryId: string; ids: string }[] = [];
+            for (let i = 0; i < products.length; i++) {
+                for (let j = i + 1; j < products.length; j++) {
+                    paths.push({
+                        categoryId: category.id,
+                        ids: `${products[i].id}${IDS_SEPARATOR}${products[j].id}`,
+                    });
+                }
             }
-        }
-    }
+            return paths;
+        })
+    );
 
-    return paths;
+    return allPaths.flat();
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ categoryId: string, ids: string }> }): Promise<Metadata> {
     const resolvedParams = await params;
-    const [idA, idB] = resolvedParams.ids.split('-vs-');
+    const [idA, idB] = resolvedParams.ids.split(IDS_SEPARATOR);
 
     if (!idA || !idB) return { title: 'Not Found' };
 
-    const productA = await getProductById(idA);
-    const productB = await getProductById(idB);
+    const [productA, productB] = await Promise.all([getProductById(idA), getProductById(idB)]);
 
     if (!productA || !productB) return { title: 'Not Found' };
 
@@ -42,14 +45,13 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryI
 
 export default async function ComparePage({ params }: { params: Promise<{ categoryId: string, ids: string }> }) {
     const resolvedParams = await params;
-    const [idA, idB] = resolvedParams.ids.split('-vs-');
+    const [idA, idB] = resolvedParams.ids.split(IDS_SEPARATOR);
 
     if (!idA || !idB) notFound();
 
-    const productA = await getProductById(idA);
-    const productB = await getProductById(idB);
+    const [productA, productB] = await Promise.all([getProductById(idA), getProductById(idB)]);
 
-    if (!productA || !productB || productA.categoryId !== resolvedParams.categoryId) {
+    if (!productA || !productB || productA.categoryId !== resolvedParams.categoryId || productB.categoryId !== resolvedParams.categoryId) {
         notFound();
     }
 

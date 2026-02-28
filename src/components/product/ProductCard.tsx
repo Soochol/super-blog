@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { Product, Review } from '@/types';
-import BuyButtonCTA from '@/domains/monetization/BuyButtonCTA';
+import BuyButtonCTA from '@/components/monetization/BuyButtonCTA';
 
 interface ProductCardProps {
     product: Product;

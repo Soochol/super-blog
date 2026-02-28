@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategories, getCategoryById, getProductsByCategory, getReviewByProductId } from '@/lib/api';
-import ProductCard from '@/domains/product/ProductCard';
+import ProductCard from '@/components/product/ProductCard';
 
 export async function generateStaticParams() {
     const categories = await getCategories();
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ categoryI
 
     return {
         title: `${category.name} 추천 BEST 라인업 | Super Blog`,
-        description: `2026년 최신 ${category.name} 제품들의 상세 리뷰와 가격 비교를 확인하세요.`,
+        description: `${new Date().getFullYear()}년 최신 ${category.name} 제품들의 상세 리뷰와 가격 비교를 확인하세요.`,
     };
 }
 

@@ -1,23 +1,24 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategories, getProductsByCategory, getProductById, getReviewByProductId } from '@/lib/api';
-import ProductSpecTable from '@/domains/product/ProductSpecTable';
-import BuyButtonCTA from '@/domains/monetization/BuyButtonCTA';
+import ProductSpecTable from '@/components/product/ProductSpecTable';
+import BuyButtonCTA from '@/components/monetization/BuyButtonCTA';
 import { Star, CheckCircle, XCircle } from 'lucide-react';
 
 export async function generateStaticParams() {
     const categories = await getCategories();
 
-    const paths: { categoryId: string, productId: string }[] = [];
+    const allPaths = await Promise.all(
+        categories.map(async (category) => {
+            const products = await getProductsByCategory(category.id);
+            return products.map((product) => ({
+                categoryId: category.id,
+                productId: product.id,
+            }));
+        })
+    );
 
-    for (const category of categories) {
-        const products = await getProductsByCategory(category.id);
-        for (const product of products) {
-            paths.push({ categoryId: category.id, productId: product.id });
-        }
-    }
-
-    return paths;
+    return allPaths.flat();
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ categoryId: string, productId: string }> }): Promise<Metadata> {
