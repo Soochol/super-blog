@@ -148,39 +148,89 @@ const result = await llmAdapter.run(prompt, {
 
 Skill은 Prisma `AiSkill` 모델에 저장되며, seed 스크립트로 초기 Skill 세트를 등록한다.
 
-### 2-6. `claude -p` / LLM API 호출 방식
+### 2-6. LLM Tool Use 아키텍처
+
+`claude -p`에 `--allowedTools`로 도구를 제공하여, LLM이 파이프라인을 자율적으로 오케스트레이션한다.
+
+```
+┌───────────────────────────────────────┐
+│  claude -p --allowedTools             │
+│                                        │
+│  Skill (프롬프트)  →  LLM 판단        │
+│                        ↓               │
+│              필요한 도구 호출           │
+│        ┌──────┬──────┬──────┐         │
+│        ▼      ▼      ▼      ▼         │
+│    crawl  extract  save  download     │
+│    _url   _specs  _product _image     │
+└───────────────────────────────────────┘
+```
+
+**파이프라인 도구 목록:**
+
+| 도구 | 기능 | 래핑 대상 |
+|---|---|---|
+| `crawl_url` | URL의 HTML 수집 | PlaywrightCrawler |
+| `extract_specs` | HTML에서 구조화된 스펙 추출 | AiSpecExtractor (Gemini) |
+| `save_product` | 제품 데이터 DB 저장 | PrismaProductRepository |
+| `download_image` | 이미지 다운로드 + 리사이즈/가공 | sharp |
+| `query_products` | DB에서 제품 조회 | Prisma |
+| `save_review` | 리뷰 DB 저장 | Prisma |
+
+**호출 예시:**
+
+```bash
+# Skill의 시스템 프롬프트 + 유저 프롬프트 + 도구를 조합하여 호출
+claude -p "Apple 공식 사이트에서 최신 맥북 프로 스펙을 크롤링하고 DB에 저장해줘" \
+  --system-prompt "$(cat skill-system-prompt.txt)" \
+  --allowedTools "crawl_url,extract_specs,save_product,download_image"
+```
+
+LLM이 스스로:
+1. `crawl_url`로 Apple 사이트 접속
+2. HTML을 분석하여 제품 페이지 식별
+3. `extract_specs`로 스펙 구조화
+4. `download_image`로 제품 이미지 수집
+5. `save_product`로 DB 저장
+
+**도구 구현 방식:**
+
+```typescript
+// src/cli/tools/ 디렉토리에 각 도구를 독립 스크립트로 구현
+// claude -p의 --allowedTools에서 Bash 도구로 연결
+
+// 또는 MCP 서버로 구현하여 claude --mcp-config로 연결
+// src/infrastructure/mcp/pipeline-server.ts
+```
+
+### 2-7. `claude -p` / LLM API 호출 방식
 
 ```typescript
 // src/infrastructure/ai/ClaudeCliAdapter.ts
-// claude -p 사용 시: Skill의 system/user 프롬프트 + model 정보를 활용
 class ClaudeCliAdapter implements LlmRunner {
-  async run(prompt: string, opts: { system?: string; model?: string }): Promise<string> {
+  async run(prompt: string, opts: LlmRunOptions): Promise<string> {
     const args = ['-p', prompt];
-    if (opts.system) args.push('--system', opts.system);
+    if (opts.system) args.push('--system-prompt', opts.system);
     if (opts.model) args.push('--model', opts.model);
-    const { stdout } = await execFileAsync('claude', args, { timeout: 120_000 });
+    if (opts.tools?.length) args.push('--allowedTools', opts.tools.join(','));
+    const { stdout } = await execFileAsync('claude', args, { timeout: 300_000 });
     return stdout.trim();
   }
 }
-
-// LLM API 전환 시: 동일한 Skill 데이터를 API 파라미터로 매핑
-class ClaudeApiAdapter implements LlmRunner {
-  async run(prompt: string, opts: { system?: string; model?: string }): Promise<string> {
-    // Vercel AI SDK 또는 Anthropic SDK 사용
-  }
-}
 ```
 
-### 2-7. 포트/어댑터 전환 구조
+### 2-8. 포트/어댑터 전환 구조
 
 ```
-LlmRunner (포트, 신규)      →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
+LlmRunner (포트)            →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
 SpecExtractor (포트)        →  GeminiAdapter (지금) / 다른 모델 (나중)
-ImageCollector (포트, 신규)  →  PlaywrightImageCollector (지금) / CDN 등 (나중)
-SkillRepository (포트, 신규) →  PrismaSkillRepository (지금) / FileSkillRepository (나중)
+SkillRepository (포트)      →  PrismaSkillRepository (지금)
 ```
 
-기존 `ContentGenerator`, `UrlDiscoverer` 등 기능별 포트 대신, 범용 `LlmRunner` 포트 + Skill 조합으로 단순화. Skill이 "무엇을 할지"를 정의하고, LlmRunner가 "어떻게 실행할지"를 담당.
+LlmRunner + Skill + Tools 조합으로 단순화:
+- **Skill**: "무엇을 할지" (프롬프트 템플릿)
+- **Tools**: "어떤 능력이 있는지" (도구 정의)
+- **LlmRunner**: "어떻게 실행할지" (claude -p 또는 API)
 
 ### 2-8. DB 스키마
 
