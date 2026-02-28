@@ -45,8 +45,28 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
     const review = await getReviewByProductId(product.id);
 
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.name,
+        description: review?.summary ?? `${product.name} 상세 스펙 및 리뷰`,
+        brand: { '@type': 'Brand', name: product.brand },
+        offers: {
+            '@type': 'Offer',
+            price: product.price,
+            priceCurrency: 'KRW',
+            availability: 'https://schema.org/InStock',
+            url: product.couponUrl ?? undefined,
+        },
+    };
+
     return (
-        <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <div className="container mx-auto px-4 py-8 max-w-5xl">
             {/* Product Header */}
             <div className="bg-white p-6 md:p-10 border-4 border-black shadow-hard mb-12 relative">
                 <div className="flex flex-col md:flex-row gap-10">
@@ -164,5 +184,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 />
             </div>
         </div>
+        </>
     );
 }

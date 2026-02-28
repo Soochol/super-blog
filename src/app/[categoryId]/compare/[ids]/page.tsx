@@ -57,8 +57,23 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
 
     const { reviewA, reviewB } = await getComparisonReviews(productA.id, productB.id);
 
+    const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: `${productA.name} vs ${productB.name} 비교`,
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: productA.name, url: `/${resolvedParams.categoryId}/${productA.id}` },
+            { '@type': 'ListItem', position: 2, name: productB.name, url: `/${resolvedParams.categoryId}/${productB.id}` },
+        ],
+    };
+
     return (
-        <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <div className="container mx-auto px-4 py-8 max-w-5xl">
             <div className="text-center mb-16 mt-8">
                 <h1 className="text-4xl md:text-5xl font-black text-black mb-6 tracking-tight uppercase leading-snug">
                     <span className="bg-neo-blue text-white px-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] inline-block mb-2 md:mb-0 mr-2">{productA.brand}</span>
@@ -133,5 +148,6 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
                 </div>
             )}
         </div>
+        </>
     );
 }
