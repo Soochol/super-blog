@@ -5,6 +5,7 @@ import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepos
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
 import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
+import { WebReviewReference } from '../domains/product/domain/ProductSpecs';
 import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { mkdir, writeFile } from 'fs/promises';
@@ -69,10 +70,10 @@ async function main() {
 
     // Crawl once and reuse the raw data for both spec extraction and image/hash
     const rawData = await crawler.crawlExistingProduct(url);
-    const [specs, references] = await Promise.all([
-      extractor.extractSpecs(rawData),
-      extractor.extractWebReviews([]),
-    ]);
+    const specs = await extractor.extractSpecs(rawData);
+    // Web reviews come from separate review pages (YouTube, Reddit, Naver Blog),
+    // not the manufacturer product page. Collected via a dedicated review crawl step.
+    const references: WebReviewReference[] = [];
 
     const slug = buildSlug(specs.maker, specs.model);
     console.log(`Extracted: ${specs.maker} ${specs.model} (slug: ${slug})`);
