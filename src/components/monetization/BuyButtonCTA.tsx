@@ -47,7 +47,7 @@ export default function BuyButtonCTA({
             className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
             onClick={() => {
                 if (productId) {
-                    trackCtaClick(productId, pageType, ctaPosition, variant);
+                    trackCtaClick(productId, pageType, ctaPosition, variant).catch(() => {});
                 }
             }}
         >
