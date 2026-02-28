@@ -272,6 +272,67 @@ async function main() {
     console.log(`  Review for: ${rev.productId}`);
   }
 
+  // 4. AiSkills (파이프라인에서 사용할 프롬프트 템플릿)
+  const skills = [
+    {
+      name: 'discover-listing-urls',
+      systemPromptTemplate: '당신은 한국 IT 제품 시장 전문가입니다. 정확한 URL만 제공하세요.',
+      userPromptTemplate: '한국에서 판매되는 주요 {{category}} 제조사({{makers}})의 공식 웹사이트에서 {{category}} 제품 목록을 볼 수 있는 페이지 URL을 각각 1개씩 알려줘. 한국 공식 사이트 URL을 우선으로 해줘. URL만 깔끔하게 리스트로.',
+      temperature: 0.3,
+      model: 'claude',
+      version: '1.0.0',
+    },
+    {
+      name: 'validate-listing-page',
+      systemPromptTemplate: '당신은 웹페이지 분류 전문가입니다.',
+      userPromptTemplate: '다음 HTML이 {{category}} 제품 목록 페이지인지 확인해줘. "YES" 또는 "NO"만 답해.\n\nURL: {{url}}\nHTML (처음 5000자):\n{{html}}',
+      temperature: 0.1,
+      model: 'claude',
+      version: '1.0.0',
+    },
+    {
+      name: 'extract-product-links',
+      systemPromptTemplate: '당신은 웹 크롤링 전문가입니다. HTML에서 제품 상세 페이지 링크를 정확히 추출합니다.',
+      userPromptTemplate: '다음 HTML에서 개별 {{category}} 제품 상세 페이지로 이동하는 링크 URL을 추출해줘. 절대 URL로 변환해서 리스트로 알려줘. 최대 {{maxLinks}}개.\n\nBase URL: {{baseUrl}}\nHTML (처음 15000자):\n{{html}}',
+      temperature: 0.2,
+      model: 'claude',
+      version: '1.0.0',
+    },
+    {
+      name: 'extract-product-image',
+      systemPromptTemplate: '당신은 웹페이지에서 제품 이미지를 식별하는 전문가입니다.',
+      userPromptTemplate: '다음 HTML에서 메인 제품 이미지 URL을 1개만 추출해줘. URL만 답해.\n\n{{html}}',
+      temperature: 0.1,
+      model: 'claude',
+      version: '1.0.0',
+    },
+    {
+      name: 'generate-review',
+      systemPromptTemplate: '당신은 한국의 IT 제품 전문 리뷰어입니다. 객관적이고 구체적인 리뷰를 한국어로 작성합니다. 실제 사용 경험에 기반한 것처럼 자연스럽게 작성하되, 스펙 데이터를 정확히 반영하세요.',
+      userPromptTemplate: '다음 제품의 상세 리뷰를 작성해줘.\n\n제품명: {{maker}} {{model}}\nCPU: {{cpu}}\nRAM: {{ram}}\nStorage: {{storage}}\nGPU: {{gpu}}\n화면: {{display_size}}인치\n무게: {{weight}}kg\nOS: {{os}}\n가격: {{price}}원\n\n500자 이상의 리뷰를 작성하고, 장점 3개, 단점 2개, 추천 대상, 비추천 대상을 포함해줘.',
+      temperature: 0.7,
+      model: 'claude',
+      version: '1.0.0',
+    },
+    {
+      name: 'generate-comparison',
+      systemPromptTemplate: '당신은 한국의 IT 제품 비교 전문가입니다. 두 제품을 객관적으로 비교 분석합니다.',
+      userPromptTemplate: '다음 두 {{category}} 제품을 비교 분석해줘.\n\n제품 A: {{productA}}\n제품 B: {{productB}}\n\n각 항목별(성능, 디스플레이, 휴대성, 가성비) 비교와 최종 추천을 포함해줘.',
+      temperature: 0.7,
+      model: 'claude',
+      version: '1.0.0',
+    },
+  ];
+
+  for (const skill of skills) {
+    await prisma.aiSkill.upsert({
+      where: { name: skill.name },
+      update: { ...skill },
+      create: skill,
+    });
+    console.log(`  Skill: ${skill.name}`);
+  }
+
   console.log('Seeding complete!');
 }
 
@@ -286,7 +347,7 @@ main()
 npm run db:seed
 ```
 
-Expected: "Seeding complete!" 출력, 카테고리 1개, 제품 3개, 리뷰 3개 생성
+Expected: "Seeding complete!" 출력, 카테고리 1개, 제품 3개, 리뷰 3개, 스킬 6개 생성
 
 **Step 3: 데이터 확인**
 
@@ -666,20 +727,146 @@ git commit -m "feat(db): add product repository port and prisma implementation"
 
 ---
 
-### Task 6: CLI URL 탐색 스크립트 — LLM 기반 (TDD)
+### Task 6a: SkillRepository 포트 + LlmRunner 포트 + Prisma 구현 (TDD)
+
+**Files:**
+- Create: `src/domains/skill/domain/ports/SkillRepository.ts`
+- Create: `src/shared/ai/ports/LlmRunner.ts`
+- Create: `src/infrastructure/db/PrismaSkillRepository.ts`
+- Create: `src/infrastructure/ai/ClaudeCliAdapter.ts`
+- Create: `tests/infrastructure/db/PrismaSkillRepository.test.ts`
+
+모든 CLI 스크립트가 Skill을 로드하고 LLM을 호출하는 기반.
+
+**Step 1: SkillRepository 포트 정의**
+
+```typescript
+// src/domains/skill/domain/ports/SkillRepository.ts
+import { AiSkill } from '../AiSkill';
+
+export interface SkillRepository {
+  findByName(name: string): Promise<AiSkill | null>;
+  findAll(): Promise<AiSkill[]>;
+}
+```
+
+**Step 2: LlmRunner 포트 정의**
+
+```typescript
+// src/shared/ai/ports/LlmRunner.ts
+export interface LlmRunOptions {
+  system?: string;
+  model?: string;
+  temperature?: number;
+}
+
+export interface LlmRunner {
+  run(prompt: string, opts?: LlmRunOptions): Promise<string>;
+}
+```
+
+**Step 3: 실패하는 테스트 작성**
+
+```typescript
+// tests/infrastructure/db/PrismaSkillRepository.test.ts
+import { PrismaSkillRepository } from '@/infrastructure/db/PrismaSkillRepository';
+import { prisma } from '@/infrastructure/db/PrismaClient';
+
+const repo = new PrismaSkillRepository();
+
+describe('PrismaSkillRepository', () => {
+  afterAll(() => prisma.$disconnect());
+
+  test('findByName returns seeded skill', async () => {
+    const skill = await repo.findByName('discover-listing-urls');
+    expect(skill).not.toBeNull();
+    expect(skill!.name).toBe('discover-listing-urls');
+    expect(skill!.userPromptTemplate).toContain('{{category}}');
+  });
+
+  test('findByName returns null for unknown skill', async () => {
+    const skill = await repo.findByName('nonexistent');
+    expect(skill).toBeNull();
+  });
+
+  test('findAll returns all skills', async () => {
+    const skills = await repo.findAll();
+    expect(skills.length).toBeGreaterThanOrEqual(6);
+  });
+});
+```
+
+**Step 4: PrismaSkillRepository + ClaudeCliAdapter 구현**
+
+```typescript
+// src/infrastructure/db/PrismaSkillRepository.ts
+import { SkillRepository } from '../../domains/skill/domain/ports/SkillRepository';
+import { AiSkill } from '../../domains/skill/domain/AiSkill';
+import { prisma } from './PrismaClient';
+
+export class PrismaSkillRepository implements SkillRepository {
+  async findByName(name: string): Promise<AiSkill | null> {
+    return prisma.aiSkill.findUnique({ where: { name } });
+  }
+
+  async findAll(): Promise<AiSkill[]> {
+    return prisma.aiSkill.findMany();
+  }
+}
+```
+
+```typescript
+// src/infrastructure/ai/ClaudeCliAdapter.ts
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { LlmRunner, LlmRunOptions } from '../../shared/ai/ports/LlmRunner';
+
+const execFileAsync = promisify(execFile);
+
+export class ClaudeCliAdapter implements LlmRunner {
+  async run(prompt: string, opts?: LlmRunOptions): Promise<string> {
+    const args = ['-p', prompt];
+    if (opts?.system) args.push('--system-prompt', opts.system);
+    if (opts?.model) args.push('--model', opts.model);
+    const { stdout } = await execFileAsync('claude', args, {
+      timeout: 120_000,
+      maxBuffer: 1024 * 1024,
+    });
+    return stdout.trim();
+  }
+}
+```
+
+**Step 5: 테스트 실행 (seed 후)**
+
+```bash
+npx jest tests/infrastructure/db/PrismaSkillRepository.test.ts
+```
+
+Expected: 3개 테스트 PASS (DB에 seed된 Skill 데이터 필요)
+
+**Step 6: 커밋**
+
+```bash
+git add src/domains/skill/domain/ports/SkillRepository.ts src/shared/ai/ports/LlmRunner.ts src/infrastructure/db/PrismaSkillRepository.ts src/infrastructure/ai/ClaudeCliAdapter.ts tests/infrastructure/db/PrismaSkillRepository.test.ts
+git commit -m "feat: add skill repository port, llm runner port, and implementations"
+```
+
+---
+
+### Task 6b: CLI URL 탐색 스크립트 — Skill 기반 (TDD)
 
 **Files:**
 - Create: `src/cli/discover.ts`
-- Create: `src/infrastructure/ai/ClaudeCliAdapter.ts`
 - Create: `tests/cli/discover.test.ts`
 
-LLM(`claude -p`)이 제조사 노트북 목록 URL을 탐색하고, Playwright로 실제 접속하여 검증.
+LLM(`claude -p`)이 Skill 프롬프트를 사용하여 제조사 노트북 목록 URL을 탐색하고, Playwright로 검증.
 
 **Step 1: 실패하는 테스트 작성**
 
 ```typescript
 // tests/cli/discover.test.ts
-import { parseDiscoveredUrls, validateUrl } from '@/cli/discover';
+import { parseDiscoveredUrls } from '@/cli/discover';
 
 describe('discover CLI utils', () => {
   test('parseDiscoveredUrls extracts URLs from LLM response', () => {
@@ -707,33 +894,15 @@ npx jest tests/cli/discover.test.ts
 
 Expected: FAIL — `@/cli/discover` 모듈 없음
 
-**Step 3: ClaudeCliAdapter 구현**
-
-```typescript
-// src/infrastructure/ai/ClaudeCliAdapter.ts
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-
-const execFileAsync = promisify(execFile);
-
-export class ClaudeCliAdapter {
-  async prompt(userPrompt: string): Promise<string> {
-    const { stdout } = await execFileAsync('claude', ['-p', userPrompt], {
-      timeout: 120_000,
-      maxBuffer: 1024 * 1024,
-    });
-    return stdout.trim();
-  }
-}
-```
-
-**Step 4: discover.ts 구현**
+**Step 3: discover.ts 구현 (Skill 기반)**
 
 ```typescript
 // src/cli/discover.ts
 import 'dotenv/config';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
+import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
+import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 
 export function parseDiscoveredUrls(text: string): string[] {
   const urlRegex = /https?:\/\/[^\s,)>\]"']+/g;
@@ -741,32 +910,47 @@ export function parseDiscoveredUrls(text: string): string[] {
 }
 
 async function main() {
-  const claude = new ClaudeCliAdapter();
+  const llm = new ClaudeCliAdapter();
+  const skillRepo = new PrismaSkillRepository();
   const crawler = new PlaywrightCrawler();
 
-  // Step 1: LLM에게 URL 탐색 요청
+  // Step 1: Skill 로드 + LLM에게 URL 탐색 요청
+  const discoverSkill = await skillRepo.findByName('discover-listing-urls');
+  if (!discoverSkill) throw new Error('Skill "discover-listing-urls" not found. Run db:seed first.');
+
   console.log('Discovering manufacturer notebook listing URLs...');
-  const llmResponse = await claude.prompt(
-    '한국에서 판매되는 주요 노트북 제조사(Apple, Samsung, LG, ASUS, Lenovo, HP, Dell)의 ' +
-    '공식 웹사이트에서 노트북 제품 목록을 볼 수 있는 페이지 URL을 각각 1개씩 알려줘. ' +
-    '한국 공식 사이트 URL을 우선으로 해줘. URL만 깔끔하게 리스트로.'
-  );
+  const prompt = injectContextToPrompt(discoverSkill.userPromptTemplate, {
+    category: '노트북',
+    makers: 'Apple, Samsung, LG, ASUS, Lenovo, HP, Dell',
+  });
+  const llmResponse = await llm.run(prompt, {
+    system: discoverSkill.systemPromptTemplate,
+    model: discoverSkill.model,
+    temperature: discoverSkill.temperature,
+  });
 
   const candidateUrls = parseDiscoveredUrls(llmResponse);
   console.log(`Found ${candidateUrls.length} candidate URLs`);
 
-  // Step 2: Playwright로 실제 접속 검증
+  // Step 2: Skill 로드 + Playwright 검증
+  const validateSkill = await skillRepo.findByName('validate-listing-page');
+  if (!validateSkill) throw new Error('Skill "validate-listing-page" not found.');
+
   const verified: string[] = [];
   for (const url of candidateUrls) {
     try {
       console.log(`  Verifying: ${url}`);
       const { html } = await crawler.crawlExistingProduct(url);
 
-      // LLM에게 페이지 내용 검증 요청
-      const isValid = await claude.prompt(
-        `다음 HTML이 노트북 제품 목록 페이지인지 확인해줘. "YES" 또는 "NO"만 답해.\n\n` +
-        `URL: ${url}\nHTML (처음 5000자):\n${html.substring(0, 5000)}`
-      );
+      const validatePrompt = injectContextToPrompt(validateSkill.userPromptTemplate, {
+        category: '노트북',
+        url,
+        html: html.substring(0, 5000),
+      });
+      const isValid = await llm.run(validatePrompt, {
+        system: validateSkill.systemPromptTemplate,
+        model: validateSkill.model,
+      });
 
       if (isValid.toUpperCase().includes('YES')) {
         verified.push(url);
@@ -784,12 +968,8 @@ async function main() {
   console.log(`\nVerified URLs (${verified.length}):`);
   verified.forEach(u => console.log(`  ${u}`));
 
-  // 결과를 JSON 파일로 저장 (pipeline에서 사용)
   const fs = await import('fs/promises');
-  await fs.writeFile(
-    'discovered-urls.json',
-    JSON.stringify(verified, null, 2)
-  );
+  await fs.writeFile('discovered-urls.json', JSON.stringify(verified, null, 2));
   console.log('\nSaved to discovered-urls.json');
 }
 

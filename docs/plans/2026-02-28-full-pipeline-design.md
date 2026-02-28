@@ -118,31 +118,71 @@ npm run pipeline:review -- --product-id 1    # 특정 제품 리뷰 생성
 npm run pipeline:all                         # 전체 파이프라인 실행
 ```
 
-### 2-4. `claude -p` 호출 방식
+### 2-5. Skill 기반 프롬프트 관리
+
+모든 LLM 호출은 `skill` 도메인의 `AiSkill`을 통해 프롬프트를 주입받는다. 프롬프트가 코드에 하드코딩되지 않으며, DB의 스킬 레코드를 수정하면 코드 변경 없이 프롬프트를 업데이트할 수 있다.
+
+```typescript
+// 호출 흐름
+const skill = await skillRepo.findByName('discover-listing-urls');
+const prompt = injectContextToPrompt(skill.userPromptTemplate, { category: '노트북' });
+const result = await llmAdapter.run(prompt, {
+  system: skill.systemPromptTemplate,
+  model: skill.model,
+  temperature: skill.temperature,
+});
+```
+
+**파이프라인에서 사용하는 Skill 목록:**
+
+| Skill 이름 | 용도 | 기본 모델 |
+|---|---|---|
+| `discover-listing-urls` | 제조사 목록 페이지 URL 탐색 | claude |
+| `validate-listing-page` | 페이지가 노트북 목록인지 검증 | claude |
+| `extract-product-links` | 목록에서 개별 제품 링크 추출 | claude |
+| `extract-product-image` | HTML에서 메인 제품 이미지 URL 추출 | claude |
+| `extract-specs` | HTML에서 스펙 구조화 추출 | gemini |
+| `validate-specs` | 추출된 스펙의 정확성 검증 | gemini |
+| `generate-review` | 제품 리뷰 기사 생성 | claude |
+| `generate-comparison` | 제품 비교 기사 생성 | claude |
+
+Skill은 Prisma `AiSkill` 모델에 저장되며, seed 스크립트로 초기 Skill 세트를 등록한다.
+
+### 2-6. `claude -p` / LLM API 호출 방식
 
 ```typescript
 // src/infrastructure/ai/ClaudeCliAdapter.ts
-import { exec } from 'child_process';
+// claude -p 사용 시: Skill의 system/user 프롬프트 + model 정보를 활용
+class ClaudeCliAdapter implements LlmRunner {
+  async run(prompt: string, opts: { system?: string; model?: string }): Promise<string> {
+    const args = ['-p', prompt];
+    if (opts.system) args.push('--system', opts.system);
+    if (opts.model) args.push('--model', opts.model);
+    const { stdout } = await execFileAsync('claude', args, { timeout: 120_000 });
+    return stdout.trim();
+  }
+}
 
-class ClaudeCliAdapter implements ContentGenerator {
-  async generateReview(specs: ProductSpecs): Promise<string> {
-    const prompt = buildReviewPrompt(specs);  // AiSkill 템플릿 활용
-    const result = await execPromise(`echo '${escapeShell(prompt)}' | claude -p`);
-    return result.stdout;
+// LLM API 전환 시: 동일한 Skill 데이터를 API 파라미터로 매핑
+class ClaudeApiAdapter implements LlmRunner {
+  async run(prompt: string, opts: { system?: string; model?: string }): Promise<string> {
+    // Vercel AI SDK 또는 Anthropic SDK 사용
   }
 }
 ```
 
-### 2-6. 포트/어댑터 전환 구조
+### 2-7. 포트/어댑터 전환 구조
 
 ```
-UrlDiscoverer (포트, 신규)  →  ClaudeCliDiscoverer (지금) / API (나중)
+LlmRunner (포트, 신규)      →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
 SpecExtractor (포트)        →  GeminiAdapter (지금) / 다른 모델 (나중)
-ContentGenerator (포트)     →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
 ImageCollector (포트, 신규)  →  PlaywrightImageCollector (지금) / CDN 등 (나중)
+SkillRepository (포트, 신규) →  PrismaSkillRepository (지금) / FileSkillRepository (나중)
 ```
 
-### 2-7. DB 스키마
+기존 `ContentGenerator`, `UrlDiscoverer` 등 기능별 포트 대신, 범용 `LlmRunner` 포트 + Skill 조합으로 단순화. Skill이 "무엇을 할지"를 정의하고, LlmRunner가 "어떻게 실행할지"를 담당.
+
+### 2-8. DB 스키마
 
 기존 Prisma 스키마의 모델을 그대로 활용:
 - `Product` — 크롤링된 스펙 저장
