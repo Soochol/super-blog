@@ -1,16 +1,23 @@
 import crypto from 'crypto';
-import { AffiliateProvider, AffiliateLinkResult } from '../../domains/affiliate/domain/ports/AffiliateProvider';
+import { AffiliateProvider, PriceValidationResult } from '../../domains/affiliate/domain/ports/AffiliateProvider';
 
 export class CoupangProvider implements AffiliateProvider {
     private accessKey: string;
     private secretKey: string;
 
     constructor() {
-        this.accessKey = process.env.COUPANG_ACCESS_KEY || '';
-        this.secretKey = process.env.COUPANG_SECRET_KEY || '';
+        const accessKey = process.env.COUPANG_ACCESS_KEY;
+        const secretKey = process.env.COUPANG_SECRET_KEY;
+
+        if (!accessKey || !secretKey) {
+            throw new Error('CoupangProvider: COUPANG_ACCESS_KEY and COUPANG_SECRET_KEY environment variables are required');
+        }
+
+        this.accessKey = accessKey;
+        this.secretKey = secretKey;
     }
 
-    generateHmacSignature(method: string, uri: string): string {
+    private generateHmacSignature(method: string, uri: string): string {
         const timestamp = this.getFormattedTimestamp();
         const message = timestamp + method + uri;
         const signature = crypto.createHmac('sha256', this.secretKey).update(message).digest('hex');
@@ -29,16 +36,25 @@ export class CoupangProvider implements AffiliateProvider {
         return `${year}${month}${day}T${hour}${minute}${second}Z`;
     }
 
-    async fetchLowestPriceLink(productMaker: string, productModel: string): Promise<AffiliateLinkResult> {
-        // Basic MVP structure. The actual API call would go here using fetch() and the generateHmacSignature header.
-        // POST /v2/providers/affiliate_open_api/apis/openapi/v1/deeplink
-        return {
-            price: 1500000,
-            url: 'https://link.coupang.com/a/fake_link',
-        };
+    async generateLink(originUrl: string): Promise<string> {
+        // TODO: wire up actual API call using this.apiFetch('POST', deeplink URI, body)
+        return `https://link.coupang.com/re/${this.accessKey}?url=${encodeURIComponent(originUrl)}`;
     }
 
-    getProviderName(): string {
-        return 'COUPANG';
+    async checkLinkValidity(url: string): Promise<boolean> {
+        return url.startsWith('https://link.coupang.com/');
+    }
+
+    async fetchLowestPrice(maker: string, model: string): Promise<number> {
+        // TODO: wire up actual API call using this.apiFetch('GET', productSearch URI)
+        return 0;
+    }
+
+    async validatePriceSearch(maker: string, model: string, searchResultHtml: string): Promise<PriceValidationResult> {
+        return {
+            isPriceMatch: false,
+            actualPrice: 0,
+            productNameMatch: false,
+        };
     }
 }

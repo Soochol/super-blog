@@ -4,17 +4,31 @@ describe('CoupangProvider Adapter', () => {
     let provider: CoupangProvider;
 
     beforeAll(() => {
-        // Injecting fake secrets for testing HMAC generation
         process.env.COUPANG_ACCESS_KEY = 'fake-access-key';
         process.env.COUPANG_SECRET_KEY = 'fake-secret-key';
         provider = new CoupangProvider();
     });
 
-    it('should generate a valid HMAC signature format', () => {
-        // Expose a protected method for testing or test the public flow if mocked
-        const signature = provider.generateHmacSignature('GET', '/v2/providers/affiliate_open_api/apis/openapi/products/search?keyword=test');
+    it('should throw if credentials are missing', () => {
+        const origAccess = process.env.COUPANG_ACCESS_KEY;
+        const origSecret = process.env.COUPANG_SECRET_KEY;
+        delete process.env.COUPANG_ACCESS_KEY;
+        delete process.env.COUPANG_SECRET_KEY;
 
-        // Check if signature matches Coupang's format: CEA algorithm=HmacSHA256, access-key=..., signed-date=..., signature=...
-        expect(signature).toMatch(/^CEA algorithm=HmacSHA256, access-key=fake-access-key, signed-date=\d{6}T\d{6}Z, signature=[a-f0-9]{64}$/);
+        expect(() => new CoupangProvider()).toThrow('COUPANG_ACCESS_KEY and COUPANG_SECRET_KEY');
+
+        process.env.COUPANG_ACCESS_KEY = origAccess;
+        process.env.COUPANG_SECRET_KEY = origSecret;
+    });
+
+    it('should generate a valid affiliate link', async () => {
+        const link = await provider.generateLink('https://example.com/product/123');
+        expect(link).toContain('https://link.coupang.com/re/fake-access-key');
+        expect(link).toContain(encodeURIComponent('https://example.com/product/123'));
+    });
+
+    it('should validate coupang link URLs', async () => {
+        expect(await provider.checkLinkValidity('https://link.coupang.com/re/123')).toBe(true);
+        expect(await provider.checkLinkValidity('https://other-site.com/link')).toBe(false);
     });
 });

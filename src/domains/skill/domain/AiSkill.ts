@@ -4,7 +4,7 @@ export interface AiSkill {
     systemPromptTemplate: string;
     userPromptTemplate: string;
     temperature: number;
-    model: 'gpt-4o' | 'claude-3-5';
+    model: string;
     version: string;
 }
 
