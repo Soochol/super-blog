@@ -11,7 +11,7 @@
 | DB | 로컬 Docker PostgreSQL |
 | 크롤링 대상 | 제조사 공식 사이트 (Apple, Samsung, ASUS 등) |
 | AI 텍스트 생성 | `claude -p` (CLI 파이프 모드), 나중에 API 전환 가능 |
-| AI 이미지 생성 | Gemini API |
+| 제품 이미지 | 제조사 사이트에서 수집 + 리사이즈/가공 |
 | 배포 | 로컬 PC에서 시작, 나중에 VPS 또는 Vercel 이전 가능 |
 | 쿠팡 API | 미보유 (나중에 연동) |
 | 카테고리 | 노트북만 집중 |
@@ -30,10 +30,11 @@
 │  ┌──────▼──────────────────────────────────────┐   │
 │  │         CLI 데이터 엔진 (npm run pipeline)    │   │
 │  │                                              │   │
+│  │  0. URL 탐색 (claude -p) ──► 제조사 목록 URL  │   │
 │  │  1. 크롤링 (Playwright) ──► 제조사 사이트     │   │
 │  │  2. 스펙 추출 (Gemini API)                   │   │
-│  │  3. 리뷰 생성 (claude -p)                    │   │
-│  │  4. 이미지 생성 (Gemini API)                  │   │
+│  │  3. 제품 이미지 수집 + 가공                    │   │
+│  │  4. 리뷰 생성 (claude -p)                    │   │
 │  │  5. DB 저장 (Prisma)                         │   │
 │  └──────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────┘
@@ -47,44 +48,74 @@
 
 ## 2. 데이터 파이프라인
 
+### 2-0. URL 자동 탐색 (LLM 기반)
+
+```
+[0단계] 제조사 목록 URL 탐색
+────────────────────────────
+claude -p에게 "한국에서 판매되는 주요 노트북 제조사의
+공식 노트북 목록 페이지 URL을 찾아줘" 요청
+→ URL 후보 목록 반환
+
+[검증] Playwright로 각 URL 실제 접속
+→ 페이지 로드 성공 여부 확인
+→ LLM에게 "이 페이지가 실제 노트북 목록 페이지 맞아?" 재확인
+→ 검증된 URL만 DB/설정에 저장
+```
+
+사람은 최초 명령어 1회만 실행. LLM이 URL 탐색 + 검증까지 자동 처리.
+
 ### 2-1. 크롤링 → 추출 → 저장 흐름
 
 ```
-[1단계] 크롤링                [2단계] 스펙 추출           [3단계] 저장
-─────────────────          ──────────────────       ──────────────
-Playwright로                Gemini API에              Prisma로
-제조사 사이트 접속       →   HTML 전달              →  PostgreSQL에
-HTML 수집                   구조화된 스펙 JSON 반환     Product 저장
-                            (CPU, RAM, GPU 등)
+[1단계] 제품 링크 수집          [2단계] 개별 크롤링         [3단계] 스펙 추출 + 저장
+───────────────────          ──────────────────       ──────────────────
+검증된 목록 페이지에서          각 제품 URL에              Gemini로 HTML에서
+개별 제품 페이지 링크      →   Playwright 접속        →  구조화된 스펙 추출
+자동 수집 (Playwright)         HTML 수집                  + 제품 이미지 URL 추출
+                                                          Prisma로 DB 저장
 ```
 
-### 2-2. AI 콘텐츠 생성 흐름
+### 2-2. 이미지 수집 + 가공
 
 ```
-[4단계] 리뷰 생성                    [5단계] 이미지 생성
-───────────────────                ──────────────────
-DB에서 제품 스펙 로드                Gemini API로
-claude -p에 프롬프트 전달       →    제품 이미지/썸네일 생성
-리뷰 텍스트 반환                     이미지 파일 저장 (public/)
+[4단계] 제품 이미지 수집 + 가공
+─────────────────────────
+크롤링 시 제조사 제품 이미지 URL을 함께 추출
+→ 이미지 다운로드
+→ 리사이즈/포맷 변환 (사이트 스타일에 맞게)
+→ public/images/products/ 에 저장
+```
+
+AI 이미지 생성이 아닌, 실제 제조사 이미지를 활용하여 신뢰성 확보.
+
+### 2-3. AI 콘텐츠 생성 흐름
+
+```
+[5단계] 리뷰 생성
+───────────────────
+DB에서 제품 스펙 로드
+claude -p에 프롬프트 전달
+리뷰 텍스트 반환
 DB에 ProductReview 저장
 ```
 
-### 2-3. CLI 스크립트 구조
+### 2-4. CLI 스크립트 구조
 
 ```
 src/cli/
-├── crawl.ts              # 크롤링 명령어
-├── extract.ts            # 스펙 추출 명령어
+├── discover.ts           # LLM 기반 제조사 URL 탐색 + 검증
+├── crawl.ts              # 크롤링 명령어 (목록→개별→스펙추출→이미지수집)
 ├── generate-review.ts    # AI 리뷰 생성 (claude -p 호출)
-├── generate-image.ts     # AI 이미지 생성 (Gemini)
 └── pipeline.ts           # 위 모든 단계를 순서대로 실행
 ```
 
 npm 스크립트 예시:
 ```bash
-npm run pipeline:crawl -- --url "https://apple.com/macbook-pro"
-npm run pipeline:review -- --product-id 1
-npm run pipeline:all
+npm run pipeline:discover                    # LLM이 제조사 URL 탐색 + 검증
+npm run pipeline:crawl                       # 검증된 URL에서 제품 자동 크롤링
+npm run pipeline:review -- --product-id 1    # 특정 제품 리뷰 생성
+npm run pipeline:all                         # 전체 파이프라인 실행
 ```
 
 ### 2-4. `claude -p` 호출 방식
@@ -102,15 +133,16 @@ class ClaudeCliAdapter implements ContentGenerator {
 }
 ```
 
-### 2-5. 포트/어댑터 전환 구조
+### 2-6. 포트/어댑터 전환 구조
 
 ```
-SpecExtractor (포트)      →  GeminiAdapter (지금) / 다른 모델 (나중)
-ContentGenerator (포트)   →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
-ImageGenerator (포트, 신규) →  GeminiImageAdapter (지금) / DALL-E 등 (나중)
+UrlDiscoverer (포트, 신규)  →  ClaudeCliDiscoverer (지금) / API (나중)
+SpecExtractor (포트)        →  GeminiAdapter (지금) / 다른 모델 (나중)
+ContentGenerator (포트)     →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
+ImageCollector (포트, 신규)  →  PlaywrightImageCollector (지금) / CDN 등 (나중)
 ```
 
-### 2-6. DB 스키마
+### 2-7. DB 스키마
 
 기존 Prisma 스키마의 모델을 그대로 활용:
 - `Product` — 크롤링된 스펙 저장
@@ -205,9 +237,8 @@ export const getProducts = async () => prisma.product.findMany();
 
 ### Phase 2: AI 콘텐츠 생성 (핵심 가치)
 1. `ClaudeCliAdapter` 구현 (claude -p 호출)
-2. `ImageGenerator` 포트 + `GeminiImageAdapter` 구현
-3. 리뷰/비교 기사 생성 파이프라인 완성
-4. 생성된 콘텐츠 DB 저장 + 프론트엔드 연동
+2. 리뷰/비교 기사 생성 파이프라인 완성
+3. 생성된 콘텐츠 DB 저장 + 프론트엔드 연동
 
 ### Phase 3: 수익화 & 운영 (비즈니스)
 1. 클릭 추적 (`PrismaAnalyticsTracker`) 구현

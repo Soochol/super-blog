@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 정적 JSON 기반 데이터를 PostgreSQL(Docker) + Prisma로 전환하고, CLI 스크립트로 크롤링→추출→저장 파이프라인을 실동작시킨다.
+**Goal:** 정적 JSON 기반 데이터를 PostgreSQL(Docker) + Prisma로 전환하고, CLI 스크립트로 URL 탐색→크롤링→추출→이미지 수집→저장 파이프라인을 실동작시킨다.
 
-**Architecture:** Docker Compose로 PostgreSQL 실행, Prisma ORM으로 데이터 접근, `src/cli/`에 CLI 스크립트를 두어 터미널에서 파이프라인 실행. Next.js `src/lib/api.ts`는 Prisma 쿼리로 교체하되 프론트엔드 타입 계약(Product, Category, Review)은 유지.
+**Architecture:** Docker Compose로 PostgreSQL 실행, Prisma ORM으로 데이터 접근, `src/cli/`에 CLI 스크립트를 두어 터미널에서 파이프라인 실행. LLM(`claude -p`)이 제조사 URL을 탐색하고 Playwright가 검증. 크롤링 시 제품 이미지도 함께 수집. Next.js `src/lib/api.ts`는 Prisma 쿼리로 교체하되 프론트엔드 타입 계약(Product, Category, Review)은 유지.
 
-**Tech Stack:** Docker Compose, PostgreSQL 17, Prisma 7, tsx (CLI runner), Playwright (크롤링), Gemini API (스펙 추출)
+**Tech Stack:** Docker Compose, PostgreSQL 17, Prisma 7, tsx (CLI runner), Playwright (크롤링), Gemini API (스펙 추출), claude -p (URL 탐색), sharp (이미지 가공)
 
 ---
 
@@ -666,7 +666,161 @@ git commit -m "feat(db): add product repository port and prisma implementation"
 
 ---
 
-### Task 6: CLI 크롤링 스크립트 (TDD)
+### Task 6: CLI URL 탐색 스크립트 — LLM 기반 (TDD)
+
+**Files:**
+- Create: `src/cli/discover.ts`
+- Create: `src/infrastructure/ai/ClaudeCliAdapter.ts`
+- Create: `tests/cli/discover.test.ts`
+
+LLM(`claude -p`)이 제조사 노트북 목록 URL을 탐색하고, Playwright로 실제 접속하여 검증.
+
+**Step 1: 실패하는 테스트 작성**
+
+```typescript
+// tests/cli/discover.test.ts
+import { parseDiscoveredUrls, validateUrl } from '@/cli/discover';
+
+describe('discover CLI utils', () => {
+  test('parseDiscoveredUrls extracts URLs from LLM response', () => {
+    const llmResponse = `
+1. Apple 노트북: https://www.apple.com/kr/shop/buy-mac/macbook-pro
+2. Samsung 노트북: https://www.samsung.com/sec/pc/notebook/
+3. ASUS 노트북: https://www.asus.com/kr/laptops/
+    `;
+    const urls = parseDiscoveredUrls(llmResponse);
+    expect(urls.length).toBe(3);
+    expect(urls[0]).toContain('apple.com');
+  });
+
+  test('parseDiscoveredUrls handles empty response', () => {
+    expect(parseDiscoveredUrls('')).toEqual([]);
+  });
+});
+```
+
+**Step 2: 테스트 실행하여 실패 확인**
+
+```bash
+npx jest tests/cli/discover.test.ts
+```
+
+Expected: FAIL — `@/cli/discover` 모듈 없음
+
+**Step 3: ClaudeCliAdapter 구현**
+
+```typescript
+// src/infrastructure/ai/ClaudeCliAdapter.ts
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
+
+export class ClaudeCliAdapter {
+  async prompt(userPrompt: string): Promise<string> {
+    const { stdout } = await execFileAsync('claude', ['-p', userPrompt], {
+      timeout: 120_000,
+      maxBuffer: 1024 * 1024,
+    });
+    return stdout.trim();
+  }
+}
+```
+
+**Step 4: discover.ts 구현**
+
+```typescript
+// src/cli/discover.ts
+import 'dotenv/config';
+import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
+import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
+
+export function parseDiscoveredUrls(text: string): string[] {
+  const urlRegex = /https?:\/\/[^\s,)>\]"']+/g;
+  return (text.match(urlRegex) || []).map(u => u.replace(/[.,;]+$/, ''));
+}
+
+async function main() {
+  const claude = new ClaudeCliAdapter();
+  const crawler = new PlaywrightCrawler();
+
+  // Step 1: LLM에게 URL 탐색 요청
+  console.log('Discovering manufacturer notebook listing URLs...');
+  const llmResponse = await claude.prompt(
+    '한국에서 판매되는 주요 노트북 제조사(Apple, Samsung, LG, ASUS, Lenovo, HP, Dell)의 ' +
+    '공식 웹사이트에서 노트북 제품 목록을 볼 수 있는 페이지 URL을 각각 1개씩 알려줘. ' +
+    '한국 공식 사이트 URL을 우선으로 해줘. URL만 깔끔하게 리스트로.'
+  );
+
+  const candidateUrls = parseDiscoveredUrls(llmResponse);
+  console.log(`Found ${candidateUrls.length} candidate URLs`);
+
+  // Step 2: Playwright로 실제 접속 검증
+  const verified: string[] = [];
+  for (const url of candidateUrls) {
+    try {
+      console.log(`  Verifying: ${url}`);
+      const { html } = await crawler.crawlExistingProduct(url);
+
+      // LLM에게 페이지 내용 검증 요청
+      const isValid = await claude.prompt(
+        `다음 HTML이 노트북 제품 목록 페이지인지 확인해줘. "YES" 또는 "NO"만 답해.\n\n` +
+        `URL: ${url}\nHTML (처음 5000자):\n${html.substring(0, 5000)}`
+      );
+
+      if (isValid.toUpperCase().includes('YES')) {
+        verified.push(url);
+        console.log(`    ✓ Verified`);
+      } else {
+        console.log(`    ✗ Not a notebook listing page`);
+      }
+    } catch (error) {
+      console.log(`    ✗ Failed to access: ${(error as Error).message}`);
+    }
+  }
+
+  await crawler.close();
+
+  console.log(`\nVerified URLs (${verified.length}):`);
+  verified.forEach(u => console.log(`  ${u}`));
+
+  // 결과를 JSON 파일로 저장 (pipeline에서 사용)
+  const fs = await import('fs/promises');
+  await fs.writeFile(
+    'discovered-urls.json',
+    JSON.stringify(verified, null, 2)
+  );
+  console.log('\nSaved to discovered-urls.json');
+}
+
+const isDirectRun = process.argv[1]?.includes('discover');
+if (isDirectRun) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}
+```
+
+**Step 5: 테스트 실행하여 통과 확인**
+
+```bash
+npx jest tests/cli/discover.test.ts
+```
+
+Expected: 2개 테스트 PASS
+
+**Step 6: .gitignore에 discovered-urls.json 추가**
+
+discover 결과 파일은 로컬 환경에 따라 다르므로 git에서 제외.
+
+**Step 7: 커밋**
+
+```bash
+git add src/cli/discover.ts src/infrastructure/ai/ClaudeCliAdapter.ts tests/cli/discover.test.ts .gitignore
+git commit -m "feat(cli): add llm-based url discovery with playwright validation"
+```
+
+---
+
+### Task 7: CLI 크롤링 스크립트 + 이미지 수집 (TDD)
 
 **Files:**
 - Create: `src/cli/crawl.ts`
@@ -675,9 +829,14 @@ git commit -m "feat(db): add product repository port and prisma implementation"
 - Reference: `src/infrastructure/ai/AiSpecExtractor.ts`
 - Reference: `src/infrastructure/db/PrismaProductRepository.ts`
 
-**Step 1: 실패하는 테스트 작성**
+**Step 1: sharp 설치 (이미지 가공)**
 
-크롤링 자체는 외부 의존성이므로, 파이프라인 오케스트레이션 함수를 단위 테스트.
+```bash
+npm install sharp
+npm install -D @types/sharp
+```
+
+**Step 2: 실패하는 테스트 작성**
 
 ```typescript
 // tests/cli/crawl.test.ts
@@ -694,7 +853,7 @@ describe('crawl CLI utils', () => {
 });
 ```
 
-**Step 2: 테스트 실행하여 실패 확인**
+**Step 3: 테스트 실행하여 실패 확인**
 
 ```bash
 npx jest tests/cli/crawl.test.ts
@@ -702,7 +861,7 @@ npx jest tests/cli/crawl.test.ts
 
 Expected: FAIL — `@/cli/crawl` 모듈 없음
 
-**Step 3: crawl.ts 구현**
+**Step 4: crawl.ts 구현 (이미지 수집 포함)**
 
 ```typescript
 // src/cli/crawl.ts
@@ -711,12 +870,40 @@ import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
 import { AiSpecExtractor } from '../infrastructure/ai/AiSpecExtractor';
 import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepository';
 import { ProductGatheringService } from '../domains/product/application/ProductGatheringService';
+import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
+import sharp from 'sharp';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 
 export function buildSlug(maker: string, model: string): string {
   return `${maker}-${model}`
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9가-힣\-]/g, '');
+}
+
+async function downloadAndProcessImage(
+  imageUrl: string,
+  slug: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const outputDir = join(process.cwd(), 'public', 'images', 'products');
+    await mkdir(outputDir, { recursive: true });
+
+    const outputPath = join(outputDir, `${slug}.webp`);
+    await sharp(buffer)
+      .resize(600, 400, { fit: 'contain', background: { r: 253, g: 251, b: 247, alpha: 1 } })
+      .webp({ quality: 80 })
+      .toFile(outputPath);
+
+    return `/images/products/${slug}.webp`;
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -730,6 +917,7 @@ async function main() {
   const crawler = new PlaywrightCrawler();
   const extractor = new AiSpecExtractor();
   const repo = new PrismaProductRepository();
+  const claude = new ClaudeCliAdapter();
   const service = new ProductGatheringService(crawler, extractor);
 
   try {
@@ -739,7 +927,21 @@ async function main() {
     const slug = buildSlug(specs.maker, specs.model);
     console.log(`Extracted: ${specs.maker} ${specs.model} (slug: ${slug})`);
 
-    const productId = await repo.saveProduct(slug, specs);
+    // 제품 이미지 URL 추출 (LLM에게 요청)
+    const rawData = await crawler.crawlExistingProduct(url);
+    const imageUrlResponse = await claude.prompt(
+      `다음 HTML에서 메인 제품 이미지 URL을 1개만 추출해줘. URL만 답해.\n\n${rawData.html.substring(0, 10000)}`
+    );
+    const imageUrls = imageUrlResponse.match(/https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|webp)/i);
+
+    let localImagePath: string | null = null;
+    if (imageUrls?.[0]) {
+      console.log(`Downloading image: ${imageUrls[0]}`);
+      localImagePath = await downloadAndProcessImage(imageUrls[0], slug);
+      if (localImagePath) console.log(`Image saved: ${localImagePath}`);
+    }
+
+    const productId = await repo.saveProduct(slug, specs, localImagePath);
     console.log(`Saved product: ${productId}`);
 
     await repo.saveCrawlHistory(productId, {
@@ -759,14 +961,15 @@ async function main() {
   }
 }
 
-// CLI 직접 실행 시에만 main() 호출
 const isDirectRun = process.argv[1]?.includes('crawl');
 if (isDirectRun) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 ```
 
-**Step 4: 테스트 실행하여 통과 확인**
+Note: `repo.saveProduct`에 `imageUrl` 파라미터 추가 필요 — `PrismaProductRepository.saveProduct` 시그니처를 `(slug, specs, imageUrl?)` 로 확장.
+
+**Step 5: 테스트 실행하여 통과 확인**
 
 ```bash
 npx jest tests/cli/crawl.test.ts
@@ -774,78 +977,94 @@ npx jest tests/cli/crawl.test.ts
 
 Expected: 2개 테스트 PASS
 
-**Step 5: 수동 테스트 (실제 크롤링)**
-
-```bash
-npm run pipeline:crawl -- "https://www.apple.com/macbook-pro/"
-```
-
-Expected: 크롤링 → Gemini 스펙 추출 → DB 저장. 콘솔에 진행 상황 출력.
-
-Note: Gemini API 키가 `.env`에 `GOOGLE_GENERATIVE_AI_API_KEY`로 설정되어 있어야 함.
-
 **Step 6: 커밋**
 
 ```bash
 git add src/cli/crawl.ts tests/cli/crawl.test.ts
-git commit -m "feat(cli): add crawl command for product data pipeline"
+git commit -m "feat(cli): add crawl command with image collection"
 ```
 
 ---
 
-### Task 7: CLI 파이프라인 오케스트레이터
+### Task 8: CLI 파이프라인 오케스트레이터
 
 **Files:**
 - Create: `src/cli/pipeline.ts`
 
-이 태스크는 여러 URL을 순차 크롤링하는 배치 스크립트.
+discover에서 발견한 URL 목록을 읽어서 순차 크롤링하는 배치 스크립트.
 
 **Step 1: pipeline.ts 작성**
 
 ```typescript
 // src/cli/pipeline.ts
 import 'dotenv/config';
+import { readFile } from 'fs/promises';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
 import { AiSpecExtractor } from '../infrastructure/ai/AiSpecExtractor';
 import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepository';
 import { ProductGatheringService } from '../domains/product/application/ProductGatheringService';
+import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
 import { buildSlug } from './crawl';
 
-// 크롤링 대상 URL 목록 (추후 설정 파일이나 DB로 이동 가능)
-const TARGETS = [
-  { url: 'https://www.apple.com/shop/buy-mac/macbook-pro', keyword: 'MacBook Pro 리뷰' },
-  { url: 'https://www.samsung.com/sec/galaxybook/', keyword: '갤럭시북 리뷰' },
-];
-
 async function main() {
+  // discover에서 생성한 URL 목록 읽기
+  let urls: string[];
+  try {
+    const data = await readFile('discovered-urls.json', 'utf-8');
+    urls = JSON.parse(data);
+  } catch {
+    console.error('discovered-urls.json not found. Run "npm run pipeline:discover" first.');
+    process.exit(1);
+  }
+
   const crawler = new PlaywrightCrawler();
   const extractor = new AiSpecExtractor();
   const repo = new PrismaProductRepository();
+  const claude = new ClaudeCliAdapter();
   const service = new ProductGatheringService(crawler, extractor);
 
-  console.log(`Pipeline starting: ${TARGETS.length} targets`);
+  console.log(`Pipeline starting: ${urls.length} listing pages`);
 
-  for (const target of TARGETS) {
+  for (const listingUrl of urls) {
     try {
-      console.log(`\n--- Crawling: ${target.url} ---`);
-      const { specs, references } = await service.gatherProductAndReviews(target.url, target.keyword);
+      console.log(`\n--- Discovering products from: ${listingUrl} ---`);
 
-      const slug = buildSlug(specs.maker, specs.model);
-      const productId = await repo.saveProduct(slug, specs);
-      console.log(`Saved: ${specs.maker} ${specs.model} (${slug})`);
+      // 목록 페이지에서 개별 제품 링크 수집
+      const listingHtml = await crawler.crawlExistingProduct(listingUrl);
+      const productLinksResponse = await claude.prompt(
+        `다음 HTML에서 개별 노트북 제품 상세 페이지로 이동하는 링크 URL을 추출해줘. ` +
+        `절대 URL로 변환해서 리스트로 알려줘. 최대 10개.\n\n` +
+        `Base URL: ${listingUrl}\nHTML (처음 15000자):\n${listingHtml.html.substring(0, 15000)}`
+      );
 
-      await repo.saveCrawlHistory(productId, {
-        url: target.url,
-        htmlHash: Buffer.from(target.url).toString('base64').substring(0, 32),
-        lastCrawledAt: new Date(),
-      });
+      const productUrls = productLinksResponse
+        .match(/https?:\/\/[^\s,)>\]"']+/g) || [];
 
-      if (references.length > 0) {
-        await repo.saveWebReviews(productId, references);
-        console.log(`  + ${references.length} web reviews`);
+      console.log(`Found ${productUrls.length} product pages`);
+
+      for (const productUrl of productUrls) {
+        try {
+          console.log(`  Crawling: ${productUrl}`);
+          const { specs, references } = await service.gatherProductAndReviews(productUrl, '');
+          const slug = buildSlug(specs.maker, specs.model);
+          const productId = await repo.saveProduct(slug, specs);
+          console.log(`  Saved: ${specs.maker} ${specs.model} (${slug})`);
+
+          await repo.saveCrawlHistory(productId, {
+            url: productUrl,
+            htmlHash: Buffer.from(productUrl).toString('base64').substring(0, 32),
+            lastCrawledAt: new Date(),
+          });
+
+          if (references.length > 0) {
+            await repo.saveWebReviews(productId, references);
+          }
+        } catch (error) {
+          console.error(`  Error: ${(error as Error).message}`);
+        }
       }
     } catch (error) {
-      console.error(`Error processing ${target.url}:`, error);
+      console.error(`Error processing ${listingUrl}:`, error);
     }
   }
 
@@ -859,25 +1078,27 @@ main().catch((e) => { console.error(e); process.exit(1); });
 **Step 2: 실행 테스트**
 
 ```bash
-npm run pipeline:all
+npm run pipeline:discover   # 먼저 URL 탐색
+npm run pipeline:all        # 발견된 URL에서 크롤링
 ```
 
-Expected: 각 타겟 URL에 대해 크롤링 → 추출 → 저장 순서로 실행
+Expected: discover → 검증된 URL 저장 → pipeline이 각 URL에서 제품 자동 수집
 
 **Step 3: 커밋**
 
 ```bash
 git add src/cli/pipeline.ts
-git commit -m "feat(cli): add pipeline orchestrator for batch crawling"
+git commit -m "feat(cli): add pipeline orchestrator using discovered urls"
 ```
 
 ---
 
-### Task 8: 기존 테스트 + 빌드 전체 검증
+### Task 9: 기존 테스트 + 빌드 전체 검증
 
 **Files:** 없음 (검증만)
 
 **Step 1: 전체 테스트 실행**
+
 
 ```bash
 npx jest
