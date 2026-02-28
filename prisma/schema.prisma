@@ -7,20 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
 // Product Domain
 model Product {
   id           String   @id @default(uuid())
   maker        String
   model        String
   cpu          String
-  ram          Int
+  ram          String
   storage      String
   gpu          String
-  displaySize  Float
+  displaySize  String
   weight       Float
   os           String
   price        Int
-  
+  imageUrl     String?
+  couponUrl    String?
+  categoryId   String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -28,6 +37,8 @@ model Product {
   reviews      WebReviewReference[]
   critiques    ProductReview[]
   categories   CategoryAssignment[]
+
+  @@index([categoryId])
 }
 
 model CrawlHistory {
@@ -36,19 +47,23 @@ model CrawlHistory {
   url           String
   htmlHash      String
   lastCrawledAt DateTime
-  
+
   product       Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }
 
 model WebReviewReference {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   productId     String
   source        String
   url           String
   summaryText   String
-  sentiment     String   // POSITIVE, NEUTRAL, NEGATIVE
-  
-  product       Product  @relation(fields: [productId], references: [id])
+  sentiment     Sentiment
+
+  product       Product   @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }
 
 // Content Domain
@@ -56,39 +71,43 @@ model ProductReview {
   id                String   @id @default(uuid())
   productId         String
   summary           String
-  pros              String[] // JSONB arrays
+  pros              String[]
   cons              String[]
+  rating            Float?
   recommendedFor    String
   notRecommendedFor String
   specHighlights    String[]
-  strategy          Json?    // ProductStrategy structure
-  sentimentAnalysis Json?    // SentimentAnalysis structure
-  
+  strategy          Json?
+  sentimentAnalysis Json?
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   product           Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
 }
 
 // Category Domain
 model Category {
   id                String   @id @default(uuid())
   name              String
+  description       String?
   maxWeight         Float?
   minPrice          Int?
   maxPrice          Int?
   requiredGpuFamily String[]
-  
+
   products          CategoryAssignment[]
 }
 
 model CategoryAssignment {
   productId  String
   categoryId String
-  
+
   product    Product  @relation(fields: [productId], references: [id])
   category   Category @relation(fields: [categoryId], references: [id])
-  
+
   @@id([productId, categoryId])
 }
 
@@ -97,7 +116,9 @@ model EventLog {
   id        String   @id @default(uuid())
   eventName String
   payload   Json
-  timestamp DateTime
+  timestamp DateTime @default(now())
+
+  @@index([eventName])
 }
 
 // Skill Domain

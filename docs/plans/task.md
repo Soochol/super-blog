@@ -36,3 +36,12 @@
 | Task 5: Skill & Shared Domain (AI 컨텍스트) | [x] | Implemented AiSkill, AiClient, and DomainEvent |
 | Task 6: Publishing Domain (SEO 및 페이지) | [x] | Implemented SeoRoute and Publisher |
 | Task 7: Category Domain (상품 분류) | [x] | Implemented CategoryRule and CategoryManager |
+
+## Backend Infrastructure Implementation
+| Task | Status | Note |
+|---|---|---|
+| Task 1: Setup Prisma ORM and Schema | [x] | Defined schema.prisma and PrismaClient |
+| Task 2: Implement Web Crawler (Playwright) | [x] | Implemented PlaywrightCrawler and fixed jest aliases |
+| Task 3: Implement AI Adapters (Vercel SDK) | [x] | Implemented AiSpecExtractor and AiContentGenerator |
+| Task 4: Implement Affiliate Provider (Coupang) | [x] | Implemented CoupangProvider with HMAC sig |
+| Task 5: Implement Simple Event Bus | [x] | Implemented NodeEventBus using EventEmitter |
