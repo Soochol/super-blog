@@ -5,10 +5,13 @@
 **Goal:** `docs/domains` (01~05) 문서의 요구사항을 반영하여 유지보수와 확장에 유리한 백엔드 비즈니스 로직용 DDD(Domain-Driven Design) 폴더 구조와 핵심 도메인 인터페이스를 구축한다.
 
 **Architecture:** 
-- `src/domains/` 하위에 핵심 서브도메인인 `skill`(AI 프롬프트/전략 관리), `product`(제품 수집/검증), `content`(AI 콘텐츠 생성), `affiliate`(제휴 링크 연동), `analytics`(데이터 추적), `publishing`(SEO 및 페이지 생성 관리), `category`(제품 분류 및 큐레이션 규칙)를 생성한다.
+- `src/domains/` 하위에 핵심 서브도메인인 `skill`(AI 프롬프트/전략 관리), `product`(제품 수집/검증/웹리뷰), `content`(AI 콘텐츠 생성/비평), `affiliate`(제휴 링크 연동), `analytics`(데이터 추적), `publishing`(SEO 및 페이지 생성 관리), `category`(제품 분류 및 큐레이션 규칙)를 생성한다.
 - `src/shared/` 하위에 여러 도메인에서 공통으로 쓰는 인프라성 핵심 로직(`ai`(공통 AI 클라이언트), `events`(도메인 이벤트 Pub/Sub))을 둔다.
-- 각 도메인은 DDD 계층형 아키텍처(`domain`, `application`, `infrastructure`) 패턴을 사용한다.
-- 초안 단계이므로 의존성 주입을 위한 `ports`(인터페이스)와 고립된 `domain`(엔티티, 타입) 위주로 설계하며, 도메인 이벤트(Domain Event)를 통해 모델 간 결합도를 낮춘다.
+- 계층화(Layering) 상세:
+  - **Domain Layer**: 엔티티, 밸류 오브젝트, 도메인 서비스, Port 인터페이스 (예: `Review.ts`, `ports/ContentGenerator.ts`)
+  - **Application Layer**: 유스케이스(Use Case)를 오케스트레이션 하는 서비스 (예: `ProductScrapingService.ts`, `ReviewCritiqueService.ts`)
+  - **Infrastructure Layer**: Port 인터페이스의 실제 구현체 (예: `PlaywrightCrawler.ts`, `OpenAiGenerator.ts`)
+- 초안 단계이므로 핵심 `domain`과 외부 연동을 위한 `ports`(인터페이스)를 먼저 정의하고, 이번 구체화 단계에서 주요 Application Service의 뼈대를 추가한다.
 
 **Tech Stack:** TypeScript, Jest
 
@@ -64,6 +67,13 @@ export interface CrawlHistory {
   lastCrawledAt: Date;
 }
 
+export interface WebReviewReference {
+  source: string; // e.g. "YouTube", "Reddit", "Naver Blog"
+  url: string;
+  summaryText: string;
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+}
+
 export function isGamingLaptop(specs: ProductSpecs): boolean {
   return specs.gpu.includes('RTX') || specs.gpu.includes('GTX') || specs.gpu.includes('Radeon RX');
 }
@@ -78,10 +88,11 @@ export interface Crawler {
   discoverNewProducts(makerHomepageUrl: string): Promise<string[]>; // 신규 제품 출시 -> 홈페이지 크롤링
   crawlExistingProduct(url: string): Promise<RawProductData>; // 기존 제품 -> 홈페이지 크롤링
   checkIfRegisteredOnHomepage(maker: string, model: string): Promise<boolean>; // 홈페이지 등록 여부
+  searchWebForReviews(keyword: string): Promise<RawProductData[]>; // 🔍 외부 커뮤니티 리뷰 검색/크롤링
 }
 
 // src/domains/product/domain/ports/SpecExtractor.ts
-import { ProductSpecs } from '../ProductSpecs';
+import { ProductSpecs, WebReviewReference } from '../ProductSpecs';
 import { RawProductData } from './Crawler';
 
 export interface ValidationResult {
@@ -92,6 +103,29 @@ export interface ValidationResult {
 export interface SpecExtractor {
   extractSpecs(raw: RawProductData): Promise<ProductSpecs>;
   validateSpecs(specs: ProductSpecs, raw: RawProductData): Promise<ValidationResult>; // AI 가 데이터 검증
+  extractWebReviews(rawReviews: RawProductData[]): Promise<WebReviewReference[]>; // 🔍 크롤링된 데이터에서 리뷰 핵심 추출
+}
+
+// src/domains/product/application/ProductGatheringService.ts
+// ✅ Application Layer: 유스케이스 오케스트레이션
+import { Crawler } from '../domain/ports/Crawler';
+import { SpecExtractor } from '../domain/ports/SpecExtractor';
+
+export class ProductGatheringService {
+  constructor(private crawler: Crawler, private extractor: SpecExtractor) {}
+
+  async gatherProductAndReviews(url: string, searchKeyword: string) {
+    // 1. 공홈 스펙 크롤링 및 추출
+    const rawSpec = await this.crawler.crawlExistingProduct(url);
+    const specs = await this.extractor.extractSpecs(rawSpec);
+
+    // 2. 외부 커뮤니티/블로그 리뷰 수집
+    const rawReviews = await this.crawler.searchWebForReviews(searchKeyword);
+    const references = await this.extractor.extractWebReviews(rawReviews);
+
+    // 3. (추후 레포지토리 저장 로직)
+    return { specs, references };
+  }
 }
 ```
 
@@ -146,6 +180,13 @@ export interface ProductStrategy {
   positioning: string;
 }
 
+export interface SentimentAnalysis {
+  overallScore: number; // 0 to 100
+  commonPraises: string[];
+  commonComplaints: string[];
+  reliability: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
 export interface ProductReview {
   summary: string;
   pros: string[];
@@ -154,6 +195,7 @@ export interface ProductReview {
   notRecommendedFor: string;
   specHighlights: string[];
   strategy?: ProductStrategy; // AI가 제품 소개에 대한 전략 수립
+  sentimentAnalysis?: SentimentAnalysis; // 🔍 수집된 외부 여론 분석
 }
 
 export function validateReviewLength(content: string): boolean {
@@ -161,13 +203,37 @@ export function validateReviewLength(content: string): boolean {
 }
 
 // src/domains/content/domain/ports/ContentGenerator.ts
-import { ProductReview, ProductStrategy } from '../Review';
-import { ProductSpecs } from '../../../product/domain/ProductSpecs';
+import { ProductReview, ProductStrategy, SentimentAnalysis } from '../Review';
+import { ProductSpecs, WebReviewReference } from '../../../product/domain/ProductSpecs';
 
 export interface ContentGenerator {
   generateProductStrategy(specs: ProductSpecs): Promise<ProductStrategy>; // AI 전략 수립
+  analyzeWebSentiments(reviews: WebReviewReference[]): Promise<SentimentAnalysis>; // 🔍 외부 리뷰 여론 분석
+  generateCritiqueArticle(specs: ProductSpecs, sentiment: SentimentAnalysis, strategy: ProductStrategy): Promise<ProductReview>; // 🔍 비평글 생성
   generateProductReview(productId: string, specsJson: string, strategy: ProductStrategy): Promise<ProductReview>;
   generateComparison(productAId: string, productBId: string): Promise<string>;
+}
+
+// src/domains/content/application/CritiqueWritingService.ts
+// ✅ Application Layer: 리뷰 분석 및 비평글 작성 오케스트레이션
+import { ContentGenerator } from '../domain/ports/ContentGenerator';
+import { ProductSpecs, WebReviewReference } from '../../../product/domain/ProductSpecs';
+
+export class CritiqueWritingService {
+  constructor(private generator: ContentGenerator) {}
+
+  async writeComprehensiveReview(specs: ProductSpecs, webReviews: WebReviewReference[]) {
+    // 1. 여론 분석 (웹 리뷰 기반)
+    const sentiment = await this.generator.analyzeWebSentiments(webReviews);
+    
+    // 2. 전략 수립 (스펙 기반)
+    const strategy = await this.generator.generateProductStrategy(specs);
+    
+    // 3. 최종 비평글 작성 (스펙 + 여론 + 전략)
+    const article = await this.generator.generateCritiqueArticle(specs, sentiment, strategy);
+    
+    return article;
+  }
 }
 ```
 
