@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 
 const pool = new pg.Pool({ connectionString: process.env['DATABASE_URL']! });
 const adapter = new PrismaPg(pool);
@@ -69,68 +70,6 @@ interface ReviewJson {
   cons: string[];
   rating: number;
 }
-
-// ---------- seed data ----------
-
-const aiSkills = [
-  {
-    name: 'discover-listing-urls',
-    systemPromptTemplate: '당신은 한국 IT 제품 시장 전문가입니다. 정확한 URL만 제공하세요.',
-    userPromptTemplate:
-      '한국에서 판매되는 주요 {{category}} 제조사({{makers}})의 공식 웹사이트에서 {{category}} 제품 목록을 볼 수 있는 페이지 URL을 각각 1개씩 알려줘. 한국 공식 사이트 URL을 우선으로 해줘. URL만 깔끔하게 리스트로.',
-    temperature: 0.3,
-    model: 'claude',
-    version: '1.0.0',
-  },
-  {
-    name: 'validate-listing-page',
-    systemPromptTemplate: '당신은 웹페이지 분류 전문가입니다.',
-    userPromptTemplate:
-      '다음 HTML이 {{category}} 제품 목록 페이지인지 확인해줘. "YES" 또는 "NO"만 답해.\n\nURL: {{url}}\nHTML (처음 5000자):\n{{html}}',
-    temperature: 0.1,
-    model: 'claude',
-    version: '1.0.0',
-  },
-  {
-    name: 'extract-product-links',
-    systemPromptTemplate:
-      '당신은 웹 크롤링 전문가입니다. HTML에서 제품 상세 페이지 링크를 정확히 추출합니다.',
-    userPromptTemplate:
-      '다음 HTML에서 개별 {{category}} 제품 상세 페이지로 이동하는 링크 URL을 추출해줘. 절대 URL로 변환해서 리스트로 알려줘. 최대 {{maxLinks}}개.\n\nBase URL: {{baseUrl}}\nHTML (처음 15000자):\n{{html}}',
-    temperature: 0.2,
-    model: 'claude',
-    version: '1.0.0',
-  },
-  {
-    name: 'extract-product-image',
-    systemPromptTemplate: '당신은 웹페이지에서 제품 이미지를 식별하는 전문가입니다.',
-    userPromptTemplate:
-      '다음 HTML에서 메인 제품 이미지 URL을 1개만 추출해줘. URL만 답해.\n\n{{html}}',
-    temperature: 0.1,
-    model: 'claude',
-    version: '1.0.0',
-  },
-  {
-    name: 'generate-review',
-    systemPromptTemplate:
-      '당신은 한국의 IT 제품 전문 리뷰어입니다. 객관적이고 구체적인 리뷰를 한국어로 작성합니다. 실제 사용 경험에 기반한 것처럼 자연스럽게 작성하되, 스펙 데이터를 정확히 반영하세요.',
-    userPromptTemplate:
-      '다음 제품의 상세 리뷰를 작성해줘.\n\n제품명: {{maker}} {{model}}\nCPU: {{cpu}}\nRAM: {{ram}}\nStorage: {{storage}}\nGPU: {{gpu}}\n화면: {{display_size}}인치\n무게: {{weight}}kg\nOS: {{os}}\n가격: {{price}}원\n\n500자 이상의 리뷰를 작성하고, 장점 3개, 단점 2개, 추천 대상, 비추천 대상을 포함해줘.',
-    temperature: 0.7,
-    model: 'claude',
-    version: '1.0.0',
-  },
-  {
-    name: 'generate-comparison',
-    systemPromptTemplate:
-      '당신은 한국의 IT 제품 비교 전문가입니다. 두 제품을 객관적으로 비교 분석합니다.',
-    userPromptTemplate:
-      '다음 두 {{category}} 제품을 비교 분석해줘.\n\n제품 A: {{productA}}\n제품 B: {{productB}}\n\n각 항목별(성능, 디스플레이, 휴대성, 가성비) 비교와 최종 추천을 포함해줘.',
-    temperature: 0.7,
-    model: 'claude',
-    version: '1.0.0',
-  },
-];
 
 // ---------- main seed function ----------
 
@@ -266,7 +205,9 @@ async function main() {
     console.log(`  Review for ${review.productId}: ${result.summary.substring(0, 40)}...`);
   }
 
-  // 4. Seed AI skills
+  // 4. Seed AI skills (loaded from src/skills/ SKILL.md files)
+  const fileSkillRepo = new FileSkillRepository();
+  const aiSkills = await fileSkillRepo.findAll();
   console.log(`\nSeeding ${aiSkills.length} AI skills...`);
 
   for (const skill of aiSkills) {

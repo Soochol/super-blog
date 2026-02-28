@@ -6,7 +6,7 @@ import { AiSpecExtractor } from '../infrastructure/ai/AiSpecExtractor';
 import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepository';
 import { ProductGatheringService } from '../domains/product/application/ProductGatheringService';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
-import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { buildSlug, downloadAndProcessImage } from './crawl';
 import { parseDiscoveredUrls } from './discover';
@@ -26,14 +26,14 @@ async function main() {
   const extractor = new AiSpecExtractor();
   const repo = new PrismaProductRepository();
   const llm = new ClaudeCliAdapter();
-  const skillRepo = new PrismaSkillRepository();
+  const skillRepo = new FileSkillRepository();
   const service = new ProductGatheringService(crawler, extractor);
 
   try {
     // 2. Load extract-product-links skill from DB
     const linksSkill = await skillRepo.findByName('extract-product-links');
     if (!linksSkill) {
-      throw new Error('Skill "extract-product-links" not found. Run db:seed first.');
+      throw new Error('Skill "extract-product-links" not found in src/skills/');
     }
 
     // 3. Load extract-product-image skill from DB

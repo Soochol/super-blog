@@ -141,8 +141,8 @@ const result = await llmAdapter.run(prompt, {
 | `validate-listing-page` | 페이지가 노트북 목록인지 검증 | claude |
 | `extract-product-links` | 목록에서 개별 제품 링크 추출 | claude |
 | `extract-product-image` | HTML에서 메인 제품 이미지 URL 추출 | claude |
-| `extract-specs` | HTML에서 스펙 구조화 추출 | gemini |
-| `validate-specs` | 추출된 스펙의 정확성 검증 | gemini |
+| `extract-specs` | HTML에서 스펙 구조화 추출 | claude |
+| `validate-specs` | 추출된 스펙의 정확성 검증 | claude |
 | `generate-review` | 제품 리뷰 기사 생성 | claude |
 | `generate-comparison` | 제품 비교 기사 생성 | claude |
 

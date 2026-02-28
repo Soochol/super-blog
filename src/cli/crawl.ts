@@ -1,10 +1,9 @@
 import 'dotenv/config';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
-import { AiSpecExtractor } from '../infrastructure/ai/AiSpecExtractor';
+import { ClaudeCliSpecExtractor } from '../infrastructure/ai/ClaudeCliSpecExtractor';
 import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepository';
-import { ProductGatheringService } from '../domains/product/application/ProductGatheringService';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
-import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { createHash } from 'crypto';
 import sharp from 'sharp';
@@ -51,17 +50,20 @@ async function main() {
   }
 
   const crawler = new PlaywrightCrawler();
-  const extractor = new AiSpecExtractor();
-  const repo = new PrismaProductRepository();
   const llm = new ClaudeCliAdapter();
-  const skillRepo = new PrismaSkillRepository();
-  const service = new ProductGatheringService(crawler, extractor);
+  const extractor = new ClaudeCliSpecExtractor(llm);
+  const repo = new PrismaProductRepository();
+  const skillRepo = new FileSkillRepository();
 
   try {
     console.log(`Crawling: ${url}`);
 
-    // Use ProductGatheringService to crawl and extract specs
-    const { specs, references } = await service.gatherProductAndReviews(url, '');
+    // Crawl once and reuse the raw data for both spec extraction and image/hash
+    const rawData = await crawler.crawlExistingProduct(url);
+    const [specs, references] = await Promise.all([
+      extractor.extractSpecs(rawData),
+      extractor.extractWebReviews([]),
+    ]);
 
     const slug = buildSlug(specs.maker, specs.model);
     console.log(`Extracted: ${specs.maker} ${specs.model} (slug: ${slug})`);
@@ -69,9 +71,6 @@ async function main() {
     // Save product to DB first so we have a productId
     const productId = await repo.saveProduct(slug, specs, categoryId);
     console.log(`Saved product: ${productId}`);
-
-    // Crawl raw HTML for image extraction and content hashing
-    const rawData = await crawler.crawlExistingProduct(url);
 
     // Extract product image using Skill (not hardcoded prompt!)
     const imageSkill = await skillRepo.findByName('extract-product-image');

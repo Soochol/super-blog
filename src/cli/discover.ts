@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
-import { PrismaSkillRepository } from '../infrastructure/db/PrismaSkillRepository';
+import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { writeFile } from 'fs/promises';
@@ -18,14 +18,14 @@ export function parseDiscoveredUrls(text: string): string[] {
 
 async function main() {
   const llm = new ClaudeCliAdapter();
-  const skillRepo = new PrismaSkillRepository();
+  const skillRepo = new FileSkillRepository();
   const crawler = new PlaywrightCrawler();
 
   try {
     // Step 1: Load skill and discover URLs
     const discoverSkill = await skillRepo.findByName('discover-listing-urls');
     if (!discoverSkill) {
-      throw new Error('Skill "discover-listing-urls" not found. Run db:seed first.');
+      throw new Error('Skill "discover-listing-urls" not found in src/skills/');
     }
 
     console.log('Discovering manufacturer notebook listing URLs...');
@@ -45,7 +45,7 @@ async function main() {
     // Step 2: Validate each URL
     const validateSkill = await skillRepo.findByName('validate-listing-page');
     if (!validateSkill) {
-      throw new Error('Skill "validate-listing-page" not found. Run db:seed first.');
+      throw new Error('Skill "validate-listing-page" not found in src/skills/');
     }
 
     const verified: string[] = [];
