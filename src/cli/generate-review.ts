@@ -55,8 +55,8 @@ export async function generateAndSaveReview(slug: string): Promise<ProductReview
             recommendedFor: review.recommendedFor,
             notRecommendedFor: review.notRecommendedFor,
             specHighlights: review.specHighlights,
-            strategy: review.strategy ?? null,
-            sentimentAnalysis: review.sentimentAnalysis ?? null,
+            strategy: review.strategy ? JSON.parse(JSON.stringify(review.strategy)) : undefined,
+            sentimentAnalysis: review.sentimentAnalysis ? JSON.parse(JSON.stringify(review.sentimentAnalysis)) : undefined,
         },
     });
 
