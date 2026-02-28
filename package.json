@@ -14,7 +14,8 @@
     "db:reset": "npx prisma migrate reset",
     "pipeline:discover": "npx tsx src/cli/discover.ts",
     "pipeline:crawl": "npx tsx src/cli/crawl.ts",
-    "pipeline:all": "npx tsx src/cli/pipeline.ts"
+    "pipeline:all": "npx tsx src/cli/pipeline.ts",
+    "pipeline:review": "npx tsx src/cli/generate-review.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.49",
