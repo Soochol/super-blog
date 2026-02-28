@@ -1,0 +1,220 @@
+# Super Blog 전체 파이프라인 설계
+
+## 개요
+
+노트북 비교 블로그의 데이터 수집 → AI 콘텐츠 생성 → 수익화 → 프론트엔드 확장까지 전체 파이프라인을 구체화하는 설계 문서.
+
+## 결정 사항
+
+| 항목 | 결정 |
+|---|---|
+| DB | 로컬 Docker PostgreSQL |
+| 크롤링 대상 | 제조사 공식 사이트 (Apple, Samsung, ASUS 등) |
+| AI 텍스트 생성 | `claude -p` (CLI 파이프 모드), 나중에 API 전환 가능 |
+| AI 이미지 생성 | Gemini API |
+| 배포 | 로컬 PC에서 시작, 나중에 VPS 또는 Vercel 이전 가능 |
+| 쿠팡 API | 미보유 (나중에 연동) |
+| 카테고리 | 노트북만 집중 |
+
+## 1. 전체 아키텍처
+
+```
+┌──────────────────────────────────────────────────┐
+│                 로컬 PC (개발 + 실행)               │
+│                                                    │
+│  ┌─────────────┐   ┌──────────────────────────┐   │
+│  │ PostgreSQL  │   │   Next.js Dev Server     │   │
+│  │ (Docker)    │◄──│   localhost:3000          │   │
+│  └──────┬──────┘   └──────────────────────────┘   │
+│         │                                          │
+│  ┌──────▼──────────────────────────────────────┐   │
+│  │         CLI 데이터 엔진 (npm run pipeline)    │   │
+│  │                                              │   │
+│  │  1. 크롤링 (Playwright) ──► 제조사 사이트     │   │
+│  │  2. 스펙 추출 (Gemini API)                   │   │
+│  │  3. 리뷰 생성 (claude -p)                    │   │
+│  │  4. 이미지 생성 (Gemini API)                  │   │
+│  │  5. DB 저장 (Prisma)                         │   │
+│  └──────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────┘
+```
+
+**핵심 원칙:**
+- CLI 데이터 엔진: 터미널에서 실행하는 Node.js 스크립트 (`src/cli/`)
+- Next.js는 DB에서 읽기만 함 (SSR/SSG)
+- `claude -p`는 CLI 스크립트 내에서 `child_process`로 호출
+- 모든 AI 호출은 포트/어댑터 패턴 — 나중에 LLM API로 전환 가능
+
+## 2. 데이터 파이프라인
+
+### 2-1. 크롤링 → 추출 → 저장 흐름
+
+```
+[1단계] 크롤링                [2단계] 스펙 추출           [3단계] 저장
+─────────────────          ──────────────────       ──────────────
+Playwright로                Gemini API에              Prisma로
+제조사 사이트 접속       →   HTML 전달              →  PostgreSQL에
+HTML 수집                   구조화된 스펙 JSON 반환     Product 저장
+                            (CPU, RAM, GPU 등)
+```
+
+### 2-2. AI 콘텐츠 생성 흐름
+
+```
+[4단계] 리뷰 생성                    [5단계] 이미지 생성
+───────────────────                ──────────────────
+DB에서 제품 스펙 로드                Gemini API로
+claude -p에 프롬프트 전달       →    제품 이미지/썸네일 생성
+리뷰 텍스트 반환                     이미지 파일 저장 (public/)
+DB에 ProductReview 저장
+```
+
+### 2-3. CLI 스크립트 구조
+
+```
+src/cli/
+├── crawl.ts              # 크롤링 명령어
+├── extract.ts            # 스펙 추출 명령어
+├── generate-review.ts    # AI 리뷰 생성 (claude -p 호출)
+├── generate-image.ts     # AI 이미지 생성 (Gemini)
+└── pipeline.ts           # 위 모든 단계를 순서대로 실행
+```
+
+npm 스크립트 예시:
+```bash
+npm run pipeline:crawl -- --url "https://apple.com/macbook-pro"
+npm run pipeline:review -- --product-id 1
+npm run pipeline:all
+```
+
+### 2-4. `claude -p` 호출 방식
+
+```typescript
+// src/infrastructure/ai/ClaudeCliAdapter.ts
+import { exec } from 'child_process';
+
+class ClaudeCliAdapter implements ContentGenerator {
+  async generateReview(specs: ProductSpecs): Promise<string> {
+    const prompt = buildReviewPrompt(specs);  // AiSkill 템플릿 활용
+    const result = await execPromise(`echo '${escapeShell(prompt)}' | claude -p`);
+    return result.stdout;
+  }
+}
+```
+
+### 2-5. 포트/어댑터 전환 구조
+
+```
+SpecExtractor (포트)      →  GeminiAdapter (지금) / 다른 모델 (나중)
+ContentGenerator (포트)   →  ClaudeCliAdapter (지금) / ClaudeApiAdapter (나중)
+ImageGenerator (포트, 신규) →  GeminiImageAdapter (지금) / DALL-E 등 (나중)
+```
+
+### 2-6. DB 스키마
+
+기존 Prisma 스키마의 모델을 그대로 활용:
+- `Product` — 크롤링된 스펙 저장
+- `CrawlHistory` — 크롤링 이력 추적
+- `ProductReview` — AI 생성 리뷰 저장
+- `WebReviewReference` — 외부 리뷰 참조
+- `Category`, `CategoryAssignment` — 카테고리 관리
+- `EventLog` — 이벤트 로깅
+
+Docker Compose로 PostgreSQL 실행:
+```yaml
+# docker-compose.yml
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: superblog
+      POSTGRES_USER: superblog
+      POSTGRES_PASSWORD: superblog
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
+```
+
+## 3. 수익화 & 운영
+
+### 3-1. 쿠팡 연동 (API 키 발급 후)
+
+기존 `CoupangProvider`의 HMAC 인증 로직 활용, 스텁 → 실제 호출 교체:
+- `generateLink()` — 실제 쿠팡 딥링크 생성
+- `fetchLowestPrice()` — 최저가 조회
+- API 키 미보유 시 placeholder URL 유지 (현재 동작 그대로)
+
+### 3-2. 클릭 추적
+
+`BuyButtonCTA` 클릭 → `AnalyticsTracker` 포트 → DB `EventLog` 저장:
+- 제품 ID, CTA 유형, 타임스탬프 기록
+- 나중에 전환율 대시보드 추가 가능
+
+인프라 구현체: `PrismaAnalyticsTracker` — `EventLog` 테이블에 INSERT
+
+### 3-3. SEO 자동화
+
+- `Publisher` 포트 구현: `SitemapPublisher`
+  - `sitemap.xml` 자동 생성 (Next.js App Router 방식)
+  - `robots.txt` 설정
+  - JSON-LD 구조화된 데이터 (Product, Review 스키마)
+- 기존 `generateMetadata` 활용 (이미 구현됨)
+
+### 3-4. 운영 우선순위
+
+1. **먼저**: 클릭 추적 + SEO 자동화 (API 키 불필요)
+2. **나중에**: 쿠팡 실제 연동 (API 키 발급 후)
+
+## 4. 프론트엔드 확장
+
+### 4-1. 즉시 수정 (현재 스텁 상태인 것들)
+
+- **검색 기능**: Header의 검색 input에 핸들러 연결, 제품명/카테고리 필터링
+- **모바일 메뉴**: 햄버거 버튼에 드로어/슬라이드 메뉴 구현
+- **누락 페이지**: `/terms`, `/privacy` 페이지 생성
+
+### 4-2. 새 페이지 (콘텐츠 축적 후)
+
+- 랭킹 페이지: `/laptop/rank/[criterion]` (성능, 가성비, 배터리 등)
+- 가이드 페이지: `/guide/[slug]` (게이밍 노트북 가이드 등)
+
+### 4-3. 데이터 소스 전환
+
+`src/lib/api.ts`의 정적 JSON 읽기 → Prisma DB 쿼리로 교체:
+```typescript
+// Before
+export const getProducts = async () => productsData;
+
+// After
+export const getProducts = async () => prisma.product.findMany();
+```
+
+`generateStaticParams`는 유지하되 데이터 소스만 변경.
+
+## 5. 구현 순서
+
+### Phase 1: 데이터 파이프라인 (기반)
+1. Docker Compose로 PostgreSQL 설정
+2. Prisma 마이그레이션 실행
+3. `src/lib/api.ts` JSON → Prisma 쿼리 전환
+4. CLI 스크립트 구조 (`src/cli/`) 생성
+5. 크롤링 → 추출 → 저장 파이프라인 실동작
+
+### Phase 2: AI 콘텐츠 생성 (핵심 가치)
+1. `ClaudeCliAdapter` 구현 (claude -p 호출)
+2. `ImageGenerator` 포트 + `GeminiImageAdapter` 구현
+3. 리뷰/비교 기사 생성 파이프라인 완성
+4. 생성된 콘텐츠 DB 저장 + 프론트엔드 연동
+
+### Phase 3: 수익화 & 운영 (비즈니스)
+1. 클릭 추적 (`PrismaAnalyticsTracker`) 구현
+2. SEO 자동화 (sitemap, robots.txt, JSON-LD)
+3. 쿠팡 API 실제 연동 (키 발급 후)
+
+### Phase 4: 프론트엔드 확장 (UX 완성)
+1. 검색 기능, 모바일 메뉴 구현
+2. `/terms`, `/privacy` 페이지
+3. 랭킹/가이드 페이지 (콘텐츠 축적 후)
