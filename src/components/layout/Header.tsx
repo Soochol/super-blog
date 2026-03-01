@@ -22,6 +22,7 @@ export default function Header() {
 
   useEffect(() => {
     if (query.length < 2) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       setResults([]);
       return;
     }
@@ -30,11 +31,15 @@ export default function Header() {
       setIsSearching(true);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) return;
         setResults(await res.json());
       } finally {
         setIsSearching(false);
       }
     }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [query]);
 
   const handleResultClick = (result: SearchResult) => {
