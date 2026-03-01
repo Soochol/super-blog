@@ -3,7 +3,6 @@ import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
 import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
-import { writeFile } from 'fs/promises';
 
 /**
  * Extracts URLs from an LLM text response.
@@ -16,22 +15,23 @@ export function parseDiscoveredUrls(text: string): string[] {
   return [...new Set(cleaned)];
 }
 
-async function main() {
+export async function discoverListingUrls(
+  category: string,
+  makers: string[],
+  log: (msg: string) => void
+): Promise<string[]> {
   const llm = new ClaudeCliAdapter();
   const skillRepo = new FileSkillRepository();
   const crawler = new PlaywrightCrawler();
 
   try {
-    // Step 1: Load skill and discover URLs
     const discoverSkill = await skillRepo.findByName('discover-listing-urls');
-    if (!discoverSkill) {
-      throw new Error('Skill "discover-listing-urls" not found in src/skills/');
-    }
+    if (!discoverSkill) throw new Error('Skill "discover-listing-urls" not found in src/skills/');
 
-    console.log('Discovering manufacturer notebook listing URLs...');
+    log('Discovering listing URLs...');
     const prompt = injectContextToPrompt(discoverSkill.userPromptTemplate, {
-      category: '노트북',
-      makers: 'Apple, Samsung, LG, ASUS, Lenovo, HP, Dell',
+      category,
+      makers: makers.join(', '),
     });
     const llmResponse = await llm.run(prompt, {
       system: discoverSkill.systemPromptTemplate,
@@ -40,22 +40,18 @@ async function main() {
     });
 
     const candidateUrls = parseDiscoveredUrls(llmResponse);
-    console.log(`Found ${candidateUrls.length} candidate URLs`);
+    log(`Found ${candidateUrls.length} candidate URLs`);
 
-    // Step 2: Validate each URL
     const validateSkill = await skillRepo.findByName('validate-listing-page');
-    if (!validateSkill) {
-      throw new Error('Skill "validate-listing-page" not found in src/skills/');
-    }
+    if (!validateSkill) throw new Error('Skill "validate-listing-page" not found in src/skills/');
 
     const verified: string[] = [];
     for (const url of candidateUrls) {
       try {
-        console.log(`  Verifying: ${url}`);
+        log(`  Verifying: ${url}`);
         const { html } = await crawler.crawlExistingProduct(url);
-
         const validatePrompt = injectContextToPrompt(validateSkill.userPromptTemplate, {
-          category: '노트북',
+          category,
           url,
           html: html.substring(0, 5000),
         });
@@ -64,26 +60,35 @@ async function main() {
           model: validateSkill.model,
           temperature: validateSkill.temperature,
         });
-
         if (isValid.toUpperCase().includes('YES')) {
           verified.push(url);
-          console.log(`    Verified`);
+          log(`    Verified`);
         } else {
-          console.log(`    Not a notebook listing page`);
+          log(`    Not a listing page`);
         }
       } catch (error) {
-        console.log(`    Failed to access: ${(error as Error).message}`);
+        log(`    Failed: ${(error as Error).message}`);
       }
     }
 
-    console.log(`\nVerified URLs (${verified.length}):`);
-    verified.forEach((u) => console.log(`  ${u}`));
-
-    await writeFile('discovered-urls.json', JSON.stringify(verified, null, 2));
-    console.log('\nSaved to discovered-urls.json');
+    log(`Discover complete: ${verified.length} verified URLs`);
+    return verified;
   } finally {
     await crawler.close();
   }
+}
+
+async function main() {
+  const { writeFile } = await import('fs/promises');
+  const urls = await discoverListingUrls(
+    '노트북',
+    ['Apple', 'Samsung', 'LG', 'ASUS', 'Lenovo', 'HP', 'Dell'],
+    console.log
+  );
+  console.log(`\nVerified URLs (${urls.length}):`);
+  urls.forEach((u) => console.log(`  ${u}`));
+  await writeFile('discovered-urls.json', JSON.stringify(urls, null, 2));
+  console.log('\nSaved to discovered-urls.json');
 }
 
 const isDirectRun = process.argv[1]?.includes('discover');

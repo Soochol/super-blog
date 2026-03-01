@@ -38,4 +38,10 @@ describe('discover CLI utils', () => {
     const urls = parseDiscoveredUrls(llmResponse);
     expect(urls.length).toBe(2);
   });
+
+  test('discoverListingUrls is exported as a function', async () => {
+    const mod = await import('@/cli/discover');
+    expect(typeof mod.discoverListingUrls).toBe('function');
+    expect(mod.discoverListingUrls.length).toBe(3);
+  });
 });
