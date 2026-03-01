@@ -7,7 +7,7 @@ import { ClaudeCliSpecExtractor } from '../infrastructure/ai/ClaudeCliSpecExtrac
 import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { buildSlug, downloadAndProcessImage } from './crawl';
-import { parseDiscoveredUrls } from './discover';
+import { parseDiscoveredUrls, discoverListingUrls } from './discover';
 
 export type PipelineParams = {
   category: string;
@@ -21,6 +21,16 @@ export async function runPipeline(
 ): Promise<void> {
   const { category, listingUrls } = params;
 
+  let resolvedUrls = listingUrls;
+  if (resolvedUrls.length === 0) {
+    log('[discover] No listing URLs provided, running discover step...');
+    resolvedUrls = await discoverListingUrls(category, params.makers, log);
+    if (resolvedUrls.length === 0) {
+      log('[discover] No verified listing URLs found. Pipeline aborted.');
+      return;
+    }
+  }
+
   const crawler = new PlaywrightCrawler();
   const llm = new ClaudeCliAdapter();
   const extractor = new ClaudeCliSpecExtractor(llm);
@@ -33,9 +43,9 @@ export async function runPipeline(
 
     const imageSkill = await skillRepo.findByName('extract-product-image');
 
-    log(`Pipeline starting: ${listingUrls.length} listing pages`);
+    log(`Pipeline starting: ${resolvedUrls.length} listing pages`);
 
-    for (const listingUrl of listingUrls) {
+    for (const listingUrl of resolvedUrls) {
       try {
         log(`\n--- Processing listing: ${listingUrl} ---`);
         const listingData = await crawler.crawlExistingProduct(listingUrl);
