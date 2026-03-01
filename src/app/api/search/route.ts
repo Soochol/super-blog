@@ -8,22 +8,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
-  const products = await prisma.product.findMany({
-    where: {
-      OR: [
-        { maker: { contains: q, mode: 'insensitive' } },
-        { model: { contains: q, mode: 'insensitive' } },
-      ],
-    },
-    select: {
-      slug: true,
-      maker: true,
-      model: true,
-      imageUrl: true,
-      categoryId: true,
-    },
-    take: 8,
-  });
+  let products;
+  try {
+    products = await prisma.product.findMany({
+      where: {
+        OR: [
+          { maker: { contains: q, mode: 'insensitive' } },
+          { model: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        slug: true,
+        maker: true,
+        model: true,
+        imageUrl: true,
+        categoryId: true,
+      },
+      take: 8,
+    });
+  } catch {
+    return NextResponse.json([], { status: 500 });
+  }
 
   return NextResponse.json(
     products.map((p) => ({

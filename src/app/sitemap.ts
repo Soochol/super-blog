@@ -26,8 +26,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   ).flat();
 
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: `${baseUrl}/laptop/rank/price`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${baseUrl}/laptop/rank/weight`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${baseUrl}/laptop/rank/premium`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${baseUrl}/guide/gaming-laptop-guide`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${baseUrl}/terms`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${baseUrl}/privacy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.2 },
+  ];
+
   return [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+    ...staticRoutes,
     ...categoryRoutes,
     ...productRoutes,
   ];

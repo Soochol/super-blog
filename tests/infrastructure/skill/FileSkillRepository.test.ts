@@ -67,11 +67,13 @@ describe('FileSkillRepository (production skills)', () => {
     'extract-product-image',
     'generate-review',
     'generate-comparison',
+    'analyze-sentiment',
+    'generate-strategy',
   ];
 
-  it('loads all 6 production skills', async () => {
+  it('loads all 8 production skills', async () => {
     const skills = await repo.findAll();
-    expect(skills).toHaveLength(6);
+    expect(skills).toHaveLength(8);
   });
 
   it.each(expectedSkills)('loads %s with valid fields', async (name) => {
