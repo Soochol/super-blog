@@ -19,14 +19,14 @@ export async function runPipeline(
   params: PipelineParams,
   log: (msg: string) => void
 ): Promise<void> {
-  const { category, listingUrls } = params;
+  const { category, makers, listingUrls } = params;
 
   let resolvedUrls = listingUrls;
   if (resolvedUrls.length === 0) {
-    log('[discover] No listing URLs provided, running discover step...');
-    resolvedUrls = await discoverListingUrls(category, params.makers, log);
+    log('No listing URLs provided, running discover step...');
+    resolvedUrls = await discoverListingUrls(category, makers, log);
     if (resolvedUrls.length === 0) {
-      log('[discover] No verified listing URLs found. Pipeline aborted.');
+      log('No verified listing URLs found. Pipeline aborted.');
       return;
     }
   }
