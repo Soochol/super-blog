@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategories, getProductsByCategory, getProductById, getReviewByProductId } from '@/lib/api';
+import { safeJsonLd } from '@/lib/seo';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
 import BuyButtonCTA from '@/components/monetization/BuyButtonCTA';
 import { Star, CheckCircle, XCircle } from 'lucide-react';
@@ -64,7 +65,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <>
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+                dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
             />
             <div className="container mx-auto px-4 py-8 max-w-5xl">
             {/* Product Header */}

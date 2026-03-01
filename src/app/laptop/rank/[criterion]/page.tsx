@@ -74,21 +74,36 @@ export default async function RankPage({ params }: { params: Promise<{ criterion
       <ol className="space-y-4">
         {products.map((p, i) => (
           <li key={p.slug}>
-            <Link
-              href={p.categoryId ? `/${p.categoryId}/${p.slug}` : '#'}
-              className="flex items-center gap-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-hard-lg transition-all p-4"
-            >
-              <span className={`text-2xl font-black w-10 h-10 flex items-center justify-center border-4 border-black ${i < 3 ? 'bg-neo-yellow' : 'bg-white'}`}>
-                {i + 1}
-              </span>
-              {p.imageUrl && (
-                <img src={p.imageUrl} alt={`${p.maker} ${p.model}`} className="w-16 h-16 object-contain" />
-              )}
-              <div className="flex-1">
-                <p className="font-black text-black text-lg">{p.maker} {p.model}</p>
-                <p className="font-bold text-black">{p.price.toLocaleString()}원 · {p.weight}kg</p>
+            {p.categoryId ? (
+              <Link
+                href={`/${p.categoryId}/${p.slug}`}
+                className="flex items-center gap-4 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:-translate-x-1 hover:shadow-hard-lg transition-all p-4"
+              >
+                <span className={`text-2xl font-black w-10 h-10 flex items-center justify-center border-4 border-black ${i < 3 ? 'bg-neo-yellow' : 'bg-white'}`}>
+                  {i + 1}
+                </span>
+                {p.imageUrl && (
+                  <img src={p.imageUrl} alt={`${p.maker} ${p.model}`} className="w-16 h-16 object-contain" />
+                )}
+                <div className="flex-1">
+                  <p className="font-black text-black text-lg">{p.maker} {p.model}</p>
+                  <p className="font-bold text-black">{p.price.toLocaleString()}원 · {p.weight}kg</p>
+                </div>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-4 bg-white border-4 border-black p-4">
+                <span className={`text-2xl font-black w-10 h-10 flex items-center justify-center border-4 border-black ${i < 3 ? 'bg-neo-yellow' : 'bg-white'}`}>
+                  {i + 1}
+                </span>
+                {p.imageUrl && (
+                  <img src={p.imageUrl} alt={`${p.maker} ${p.model}`} className="w-16 h-16 object-contain" />
+                )}
+                <div className="flex-1">
+                  <p className="font-black text-black text-lg">{p.maker} {p.model}</p>
+                  <p className="font-bold text-black">{p.price.toLocaleString()}원 · {p.weight}kg</p>
+                </div>
               </div>
-            </Link>
+            )}
           </li>
         ))}
       </ol>

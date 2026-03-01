@@ -8,9 +8,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
-  let products;
   try {
-    products = await prisma.product.findMany({
+    const products = await prisma.product.findMany({
       where: {
         OR: [
           { maker: { contains: q, mode: 'insensitive' } },
@@ -26,16 +25,15 @@ export async function GET(request: NextRequest) {
       },
       take: 8,
     });
+    return NextResponse.json(
+      products.map((p) => ({
+        id: p.slug,
+        name: `${p.maker} ${p.model}`,
+        imageUrl: p.imageUrl,
+        categoryId: p.categoryId,
+      }))
+    );
   } catch {
     return NextResponse.json([], { status: 500 });
   }
-
-  return NextResponse.json(
-    products.map((p) => ({
-      id: p.slug,
-      name: `${p.maker} ${p.model}`,
-      imageUrl: p.imageUrl,
-      categoryId: p.categoryId,
-    }))
-  );
 }

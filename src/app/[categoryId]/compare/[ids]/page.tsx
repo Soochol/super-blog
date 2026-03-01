@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCategories, getProductsByCategory, getProductById, getComparisonReviews } from '@/lib/api';
+import { safeJsonLd } from '@/lib/seo';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
 
 const IDS_SEPARATOR = '-vs-';
@@ -71,7 +72,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
         <>
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+                dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
             />
             <div className="container mx-auto px-4 py-8 max-w-5xl">
             <div className="text-center mb-16 mt-8">
