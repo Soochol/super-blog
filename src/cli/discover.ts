@@ -53,7 +53,7 @@ export async function discoverListingUrls(
         const validatePrompt = injectContextToPrompt(validateSkill.userPromptTemplate, {
           category,
           url,
-          html: html.substring(0, 5000),
+          html: html.substring(0, 5000), // limit to avoid LLM context window overflow
         });
         const isValid = await llm.run(validatePrompt, {
           system: validateSkill.systemPromptTemplate,
