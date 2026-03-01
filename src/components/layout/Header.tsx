@@ -5,6 +5,13 @@ import { Search, Menu, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const NAV_ITEMS = [
+  { href: '/laptop', label: '노트북 리뷰' },
+  { href: '/laptop/rank/price', label: '랭킹' },
+  { href: '/guide/gaming-laptop-guide', label: '가이드' },
+  { href: '/admin', label: '관리자' },
+] as const;
+
 interface SearchResult {
   id: string;
   name: string;
@@ -61,15 +68,11 @@ export default function Header() {
               </span>
             </Link>
             <nav className="hidden md:flex gap-6">
-              <Link href="/laptop" className="text-base font-bold text-black hover:text-neo-pink transition-colors">
-                노트북 리뷰
-              </Link>
-              <Link href="/laptop/rank/price" className="text-base font-bold text-black hover:text-neo-pink transition-colors">
-                랭킹
-              </Link>
-              <Link href="/guide/gaming-laptop-guide" className="text-base font-bold text-black hover:text-neo-pink transition-colors">
-                가이드
-              </Link>
+              {NAV_ITEMS.map(({ href, label }) => (
+                <Link key={href} href={href} className="text-base font-bold text-black hover:text-neo-pink transition-colors">
+                  {label}
+                </Link>
+              ))}
             </nav>
           </div>
 
@@ -127,11 +130,7 @@ export default function Header() {
               </button>
             </div>
             <div className="flex flex-col p-4 gap-2">
-              {[
-                { href: '/laptop', label: '노트북 리뷰' },
-                { href: '/laptop/rank/price', label: '랭킹' },
-                { href: '/guide/gaming-laptop-guide', label: '가이드' },
-              ].map(({ href, label }) => (
+              {NAV_ITEMS.map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}

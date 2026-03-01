@@ -95,7 +95,7 @@ export function ManualRunTab() {
           <label className="block text-sm font-medium mb-2">제조사</label>
           <div className="flex flex-wrap gap-2">
             {makers.map((m) => (
-              <span key={m} className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-sm">
+              <span key={m} className="flex items-center gap-1 bg-gray-100 text-gray-900 px-3 py-1 rounded-full text-sm">
                 {m}
                 <button onClick={() => removeMaker(m)} className="text-gray-500 hover:text-red-500">×</button>
               </span>
