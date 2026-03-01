@@ -8,7 +8,7 @@ import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { WebReviewReference } from '../domains/product/domain/ProductSpecs';
 import { createHash } from 'crypto';
 import sharp from 'sharp';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir } from 'fs/promises';
 import { join } from 'path';
 
 /** Strip script/style tags and extract body for cleaner LLM input */

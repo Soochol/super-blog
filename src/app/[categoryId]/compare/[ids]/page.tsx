@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getCategories, getProductsByCategory, getProductById, getComparisonReviews } from '@/lib/api';
 import { safeJsonLd } from '@/lib/seo';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
+import Image from 'next/image';
 
 const IDS_SEPARATOR = '-vs-';
 
@@ -87,7 +88,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
             <div className="grid grid-cols-2 gap-4 md:gap-12 mb-16 relative">
                 <div className="text-center bg-white p-6 border-4 border-black shadow-hard flex flex-col h-full transform hover:-translate-y-1 transition-transform">
                     <div className="h-40 flex items-center justify-center mb-6 p-2 bg-gray-50 border-4 border-black">
-                        <img src={productA.imageUrl} alt={productA.name} className="max-h-full object-contain mix-blend-multiply" />
+                        <Image src={productA.imageUrl} alt={productA.name} width={300} height={160} className="max-h-full object-contain mix-blend-multiply" />
                     </div>
                     <h2 className="text-xl font-black text-black mb-4 uppercase line-clamp-2">{productA.name}</h2>
                     <div className="mt-auto">
@@ -101,7 +102,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
 
                 <div className="text-center bg-white p-6 border-4 border-black shadow-hard flex flex-col h-full transform hover:-translate-y-1 transition-transform">
                     <div className="h-40 flex items-center justify-center mb-6 p-2 bg-gray-50 border-4 border-black">
-                        <img src={productB.imageUrl} alt={productB.name} className="max-h-full object-contain mix-blend-multiply" />
+                        <Image src={productB.imageUrl} alt={productB.name} width={300} height={160} className="max-h-full object-contain mix-blend-multiply" />
                     </div>
                     <h2 className="text-xl font-black text-black mb-4 uppercase line-clamp-2">{productB.name}</h2>
                     <div className="mt-auto">
@@ -126,7 +127,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
                         {reviewA && (
                             <div className="bg-neo-blue p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                                 <h4 className="text-xl font-black text-black mb-4 bg-white px-2 py-1 border-2 border-black inline-block">{productA.name}</h4>
-                                <p className="text-black font-bold mb-4">"{reviewA.summary}"</p>
+                                <p className="text-black font-bold mb-4">&ldquo;{reviewA.summary}&rdquo;</p>
                                 <div className="space-y-2">
                                     {reviewA.pros.map((p, i) => (
                                         <p key={i} className="text-black font-bold">{'\u25BA'} {p}</p>
@@ -137,7 +138,7 @@ export default async function ComparePage({ params }: { params: Promise<{ catego
                         {reviewB && (
                             <div className="bg-neo-pink p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                                 <h4 className="text-xl font-black text-black mb-4 bg-white px-2 py-1 border-2 border-black inline-block">{productB.name}</h4>
-                                <p className="text-black font-bold mb-4">"{reviewB.summary}"</p>
+                                <p className="text-black font-bold mb-4">&ldquo;{reviewB.summary}&rdquo;</p>
                                 <div className="space-y-2">
                                     {reviewB.pros.map((p, i) => (
                                         <p key={i} className="text-black font-bold">{'\u25BA'} {p}</p>

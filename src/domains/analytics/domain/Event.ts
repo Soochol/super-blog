@@ -1,6 +1,6 @@
 export interface TrackingEvent {
     eventName: string;
-    payload: Record<string, any>;
+    payload: Record<string, unknown>;
     timestamp: Date;
 }
 

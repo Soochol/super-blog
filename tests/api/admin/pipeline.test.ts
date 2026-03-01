@@ -1,4 +1,4 @@
-import { createPipelineJob, getLatestPipelineStatus } from '../../../src/app/api/admin/pipeline/service';
+import { createPipelineJob } from '../../../src/app/api/admin/pipeline/service';
 
 describe('pipeline service', () => {
   it('returns conflict=true if a job is already PENDING or RUNNING', async () => {
@@ -9,6 +9,7 @@ describe('pipeline service', () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await createPipelineJob(mockDb as any, { category: '노트북', makers: ['Samsung'] });
     expect(result.conflict).toBe(true);
     expect(mockDb.pipelineJob.create).not.toHaveBeenCalled();
@@ -22,6 +23,7 @@ describe('pipeline service', () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await createPipelineJob(mockDb as any, { category: '노트북', makers: ['Samsung'] });
     expect(result.conflict).toBe(false);
     expect(mockDb.pipelineJob.create).toHaveBeenCalledWith(

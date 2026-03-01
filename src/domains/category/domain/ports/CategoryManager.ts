@@ -1,5 +1,3 @@
-import { CategoryRule } from '../CategoryRule';
-
 export interface CategoryAssignments {
     productId: string;
     categoryIds: string[];

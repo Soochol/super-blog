@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { prisma } from '@/infrastructure/db/PrismaClient';
 
 const CRITERIA = {
@@ -83,7 +84,7 @@ export default async function RankPage({ params }: { params: Promise<{ criterion
                   {i + 1}
                 </span>
                 {p.imageUrl && (
-                  <img src={p.imageUrl} alt={`${p.maker} ${p.model}`} className="w-16 h-16 object-contain" />
+                  <Image src={p.imageUrl} alt={`${p.maker} ${p.model}`} width={64} height={64} className="object-contain" />
                 )}
                 <div className="flex-1">
                   <p className="font-black text-black text-lg">{p.maker} {p.model}</p>
@@ -96,7 +97,7 @@ export default async function RankPage({ params }: { params: Promise<{ criterion
                   {i + 1}
                 </span>
                 {p.imageUrl && (
-                  <img src={p.imageUrl} alt={`${p.maker} ${p.model}`} className="w-16 h-16 object-contain" />
+                  <Image src={p.imageUrl} alt={`${p.maker} ${p.model}`} width={64} height={64} className="object-contain" />
                 )}
                 <div className="flex-1">
                   <p className="font-black text-black text-lg">{p.maker} {p.model}</p>

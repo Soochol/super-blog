@@ -19,7 +19,7 @@ export async function runPipeline(
   params: PipelineParams,
   log: (msg: string) => void
 ): Promise<void> {
-  const { category, makers, listingUrls } = params;
+  const { category, listingUrls } = params;
 
   const crawler = new PlaywrightCrawler();
   const llm = new ClaudeCliAdapter();

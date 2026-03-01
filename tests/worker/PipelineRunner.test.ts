@@ -12,6 +12,7 @@ describe('PipelineRunner', () => {
     };
 
     const mockRun = jest.fn().mockResolvedValue(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runner = new PipelineRunner(mockDb as any, mockRun);
 
     await runner.run({
@@ -36,6 +37,7 @@ describe('PipelineRunner', () => {
     };
 
     const mockRun = jest.fn().mockRejectedValue(new Error('crawl failed'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runner = new PipelineRunner(mockDb as any, mockRun);
 
     await runner.run({ id: 'job-1', category: '노트북', makers: [], listingUrls: [] });
@@ -51,10 +53,11 @@ describe('PipelineRunner', () => {
       pipelineLog: { create: jest.fn().mockResolvedValue({}) },
     };
 
-    const mockRun = jest.fn().mockImplementation(async (_params: any, log: any) => {
+    const mockRun = jest.fn().mockImplementation(async (_params: unknown, log: (msg: string) => void) => {
       log('test log message');
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runner = new PipelineRunner(mockDb as any, mockRun);
     await runner.run({ id: 'job-1', category: '노트북', makers: [], listingUrls: [] });
 

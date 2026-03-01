@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Star } from 'lucide-react';
 import { Product, Review } from '@/types';
 import BuyButtonCTA from '@/components/monetization/BuyButtonCTA';
@@ -20,9 +21,11 @@ export default function ProductCard({ product, review, rank }: ProductCardProps)
                     </div>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                    <img
+                    <Image
                         src={product.imageUrl}
                         alt={product.name}
+                        width={400}
+                        height={300}
                         className="object-contain w-full h-full max-h-48 group-hover:scale-105 transition-transform duration-300"
                     />
                 </div>
@@ -49,7 +52,7 @@ export default function ProductCard({ product, review, rank }: ProductCardProps)
                             <span className="ml-1 text-sm font-black text-black">{review.rating}</span>
                         </div>
                         <p className="text-sm text-black font-bold truncate w-full" title={review.summary}>
-                            "{review.summary}"
+                            &ldquo;{review.summary}&rdquo;
                         </p>
                     </div>
                 )}

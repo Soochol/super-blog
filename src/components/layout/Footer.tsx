@@ -29,7 +29,7 @@ export default function Footer() {
                 <div className="border-t-2 border-black pt-8">
                     <div className="bg-neo-yellow border-4 border-black shadow-hard p-4 mb-8 transform hover:-translate-y-1 hover:-translate-x-1 hover:shadow-hard-lg transition-all">
                         <p className="text-base text-black text-center font-bold">
-                            "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+                            &ldquo;이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.&rdquo;
                         </p>
                     </div>
 

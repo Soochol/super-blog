@@ -45,12 +45,12 @@ export class CoupangProvider implements AffiliateProvider {
         return url.startsWith('https://link.coupang.com/');
     }
 
-    async fetchLowestPrice(maker: string, model: string): Promise<number> {
+    async fetchLowestPrice(_maker: string, _model: string): Promise<number> {
         // TODO: wire up actual API call using this.apiFetch('GET', productSearch URI)
         return 0;
     }
 
-    async validatePriceSearch(maker: string, model: string, searchResultHtml: string): Promise<PriceValidationResult> {
+    async validatePriceSearch(_maker: string, _model: string, _searchResultHtml: string): Promise<PriceValidationResult> {
         return {
             isPriceMatch: false,
             actualPrice: 0,

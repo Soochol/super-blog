@@ -5,6 +5,7 @@ import { safeJsonLd } from '@/lib/seo';
 import ProductSpecTable from '@/components/product/ProductSpecTable';
 import BuyButtonCTA from '@/components/monetization/BuyButtonCTA';
 import { Star, CheckCircle, XCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export async function generateStaticParams() {
     const categories = await getCategories();
@@ -72,9 +73,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             <div className="bg-white p-6 md:p-10 border-4 border-black shadow-hard mb-12 relative">
                 <div className="flex flex-col md:flex-row gap-10">
                     <div className="w-full md:w-2/5 flex items-center justify-center p-4 bg-neo-yellow border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <img
+                        <Image
                             src={product.imageUrl}
                             alt={product.name}
+                            width={400}
+                            height={300}
                             className="max-w-full h-auto object-contain mix-blend-multiply"
                         />
                     </div>
@@ -125,7 +128,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     </h2>
                     <div className="bg-neo-blue p-6 md:p-10 border-4 border-black shadow-hard">
                         <p className="text-xl md:text-2xl font-black text-black leading-relaxed mb-10 text-center p-8 bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            "{review.summary}"
+                            &ldquo;{review.summary}&rdquo;
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

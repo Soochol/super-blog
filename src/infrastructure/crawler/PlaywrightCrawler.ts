@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser } from 'playwright';
 import { Crawler, RawProductData } from '../../domains/product/domain/ports/Crawler';
 
 export class PlaywrightCrawler implements Crawler {
@@ -18,7 +18,7 @@ export class PlaywrightCrawler implements Crawler {
         }
     }
 
-    async discoverNewProducts(makerHomepageUrl: string): Promise<string[]> {
+    async discoverNewProducts(_makerHomepageUrl: string): Promise<string[]> {
         // Basic implementation for MVP. Would need site-specific logic in reality.
         return [];
     }
@@ -42,11 +42,11 @@ export class PlaywrightCrawler implements Crawler {
         }
     }
 
-    async checkIfRegisteredOnHomepage(maker: string, model: string): Promise<boolean> {
+    async checkIfRegisteredOnHomepage(_maker: string, _model: string): Promise<boolean> {
         return true; // Simplified for MVP
     }
 
-    async searchWebForReviews(keyword: string): Promise<RawProductData[]> {
+    async searchWebForReviews(_keyword: string): Promise<RawProductData[]> {
         // E.g. search Google/Naver and return top 3 URLs html 
         return [];
     }

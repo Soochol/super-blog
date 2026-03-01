@@ -14,7 +14,7 @@ export default function TermsPage() {
       <div className="bg-white border-4 border-black shadow-hard p-8 space-y-6 font-bold text-black leading-relaxed">
         <section>
           <h2 className="text-xl font-black mb-3 border-b-4 border-black pb-2">제1조 (목적)</h2>
-          <p>본 약관은 Super Blog(이하 "서비스")의 이용 조건 및 절차, 운영자와 이용자의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+          <p>본 약관은 Super Blog(이하 &ldquo;서비스&rdquo;)의 이용 조건 및 절차, 운영자와 이용자의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
         </section>
         <section>
           <h2 className="text-xl font-black mb-3 border-b-4 border-black pb-2">제2조 (서비스 내용)</h2>
