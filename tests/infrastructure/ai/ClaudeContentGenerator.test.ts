@@ -140,25 +140,22 @@ describe('ClaudeContentGenerator', () => {
     });
 
     describe('generateProductStrategy', () => {
-        it('loads generate-review skill, calls LLM with Korean prompt, and returns parsed strategy', async () => {
-            const reviewSkill = makeSkill({
-                name: 'generate-review',
-                systemPromptTemplate: 'You are a Korean tech reviewer.',
+        it('loads generate-strategy skill, calls LLM with spec context, and returns parsed strategy', async () => {
+            const strategySkill = makeSkill({
+                name: 'generate-strategy',
+                userPromptTemplate: 'Analyze {{maker}} {{model}} strategy.',
+                systemPromptTemplate: 'You are a market strategy expert.',
             });
 
-            mockSkillRepo.findByName.mockResolvedValue(reviewSkill);
+            mockSkillRepo.findByName.mockResolvedValue(strategySkill);
             mockLlm.run.mockResolvedValue(sampleStrategyJson);
 
             const result = await generator.generateProductStrategy(sampleSpecs);
 
-            expect(mockSkillRepo.findByName).toHaveBeenCalledWith('generate-review');
+            expect(mockSkillRepo.findByName).toHaveBeenCalledWith('generate-strategy');
             expect(mockLlm.run).toHaveBeenCalledWith(
                 expect.stringContaining('Apple'),
-                expect.objectContaining({
-                    system: reviewSkill.systemPromptTemplate,
-                    model: reviewSkill.model,
-                    temperature: reviewSkill.temperature,
-                }),
+                expect.objectContaining({ system: strategySkill.systemPromptTemplate }),
             );
             expect(result.targetAudience).toEqual(['professional creators', 'developers']);
             expect(result.keySellingPoints).toEqual(['M3 Max performance', 'long battery life']);
@@ -168,10 +165,11 @@ describe('ClaudeContentGenerator', () => {
     });
 
     describe('analyzeWebSentiments', () => {
-        it('loads generate-review skill, calls LLM with Korean prompt, and returns parsed sentiment', async () => {
-            const reviewSkill = makeSkill({
-                name: 'generate-review',
-                systemPromptTemplate: 'You are a Korean tech reviewer.',
+        it('loads analyze-sentiment skill, calls LLM with review text, and returns parsed sentiment', async () => {
+            const sentimentSkill = makeSkill({
+                name: 'analyze-sentiment',
+                userPromptTemplate: 'Analyze reviews:\n{{reviews}}',
+                systemPromptTemplate: 'You are a sentiment analysis expert.',
             });
 
             const reviews: WebReviewReference[] = [
@@ -189,18 +187,18 @@ describe('ClaudeContentGenerator', () => {
                 },
             ];
 
-            mockSkillRepo.findByName.mockResolvedValue(reviewSkill);
+            mockSkillRepo.findByName.mockResolvedValue(sentimentSkill);
             mockLlm.run.mockResolvedValue(sampleSentimentJson);
 
             const result = await generator.analyzeWebSentiments(reviews);
 
-            expect(mockSkillRepo.findByName).toHaveBeenCalledWith('generate-review');
+            expect(mockSkillRepo.findByName).toHaveBeenCalledWith('analyze-sentiment');
             expect(mockLlm.run).toHaveBeenCalledWith(
                 expect.stringContaining('Great laptop'),
                 expect.objectContaining({
-                    system: reviewSkill.systemPromptTemplate,
-                    model: reviewSkill.model,
-                    temperature: reviewSkill.temperature,
+                    system: sentimentSkill.systemPromptTemplate,
+                    model: sentimentSkill.model,
+                    temperature: sentimentSkill.temperature,
                 }),
             );
             expect(result.overallScore).toBe(85);

@@ -1,10 +1,9 @@
 import 'dotenv/config';
 import { createHash } from 'crypto';
 import { PlaywrightCrawler } from '../infrastructure/crawler/PlaywrightCrawler';
-import { AiSpecExtractor } from '../infrastructure/ai/AiSpecExtractor';
 import { PrismaProductRepository } from '../infrastructure/db/PrismaProductRepository';
-import { ProductGatheringService } from '../domains/product/application/ProductGatheringService';
 import { ClaudeCliAdapter } from '../infrastructure/ai/ClaudeCliAdapter';
+import { ClaudeCliSpecExtractor } from '../infrastructure/ai/ClaudeCliSpecExtractor';
 import { FileSkillRepository } from '../infrastructure/skill/FileSkillRepository';
 import { injectContextToPrompt } from '../domains/skill/domain/AiSkill';
 import { buildSlug, downloadAndProcessImage } from './crawl';
@@ -23,11 +22,10 @@ export async function runPipeline(
   const { category, makers, listingUrls } = params;
 
   const crawler = new PlaywrightCrawler();
-  const extractor = new AiSpecExtractor();
-  const repo = new PrismaProductRepository();
   const llm = new ClaudeCliAdapter();
+  const extractor = new ClaudeCliSpecExtractor(llm);
+  const repo = new PrismaProductRepository();
   const skillRepo = new FileSkillRepository();
-  const service = new ProductGatheringService(crawler, extractor);
 
   try {
     const linksSkill = await skillRepo.findByName('extract-product-links');
@@ -60,13 +58,12 @@ export async function runPipeline(
         for (const productUrl of productUrls) {
           try {
             log(`  Crawling: ${productUrl}`);
-            const { specs, references } = await service.gatherProductAndReviews(productUrl, '');
+            const rawData = await crawler.crawlExistingProduct(productUrl);
+            const specs = await extractor.extractSpecs(rawData);
             const slug = buildSlug(specs.maker, specs.model);
 
             const productId = await repo.saveProduct(slug, specs, 'laptop');
             log(`  Saved: ${specs.maker} ${specs.model} (${slug})`);
-
-            const rawData = await crawler.crawlExistingProduct(productUrl);
 
             if (imageSkill) {
               const imagePrompt = injectContextToPrompt(imageSkill.userPromptTemplate, {
@@ -93,10 +90,6 @@ export async function runPipeline(
               lastCrawledAt: new Date(),
             });
 
-            if (references.length > 0) {
-              await repo.saveWebReviews(productId, references);
-              log(`  Reviews: ${references.length}`);
-            }
           } catch (error) {
             log(`  Error processing ${productUrl}: ${(error as Error).message}`);
           }

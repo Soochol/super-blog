@@ -52,16 +52,20 @@ export class ClaudeContentGenerator implements ContentGenerator {
     }
 
     async generateProductStrategy(specs: ProductSpecs): Promise<ProductStrategy> {
-        const skill = await this.loadSkill('generate-review');
+        const skill = await this.loadSkill('generate-strategy');
 
-        const prompt = `다음 제품을 분석하고 마케팅 전략을 JSON으로 생성해주세요.
-
-제품: ${specs.maker} ${specs.model}
-CPU: ${specs.cpu}, RAM: ${specs.ram}GB, 저장장치: ${specs.storage}
-GPU: ${specs.gpu}, 디스플레이: ${specs.display_size}인치, 무게: ${specs.weight}kg
-OS: ${specs.os}, 가격: ${specs.price}원
-
-JSON 형식: {"targetAudience":[],"keySellingPoints":[],"competitors":[],"positioning":""}`;
+        const prompt = injectContextToPrompt(skill.userPromptTemplate, {
+            maker: specs.maker,
+            model: specs.model,
+            cpu: specs.cpu,
+            ram: String(specs.ram),
+            storage: specs.storage,
+            gpu: specs.gpu,
+            display_size: String(specs.display_size),
+            weight: String(specs.weight),
+            os: specs.os,
+            price: String(specs.price),
+        });
 
         const response = await this.runWithSkill(prompt, skill);
 
@@ -69,19 +73,15 @@ JSON 형식: {"targetAudience":[],"keySellingPoints":[],"competitors":[],"positi
     }
 
     async analyzeWebSentiments(reviews: WebReviewReference[]): Promise<SentimentAnalysis> {
-        const skill = await this.loadSkill('generate-review');
+        const skill = await this.loadSkill('analyze-sentiment');
 
         const reviewSummaries = reviews
             .map((r) => `[${r.source}] (${r.sentiment}) ${r.summaryText}`)
             .join('\n');
 
-        const prompt = `다음 웹 리뷰 요약을 분석하고 감성 분석 결과를 JSON으로 제공해주세요.
-
-리뷰:
-${reviewSummaries}
-
-JSON 형식: {"overallScore":0,"commonPraises":[],"commonComplaints":[],"reliability":"HIGH"}
-overallScore는 0-100, reliability는 "HIGH", "MEDIUM", "LOW" 중 하나로 답변해주세요.`;
+        const prompt = injectContextToPrompt(skill.userPromptTemplate, {
+            reviews: reviewSummaries,
+        });
 
         const response = await this.runWithSkill(prompt, skill);
 
